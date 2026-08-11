@@ -84,7 +84,7 @@ public class ServicesFunctions
         var s = await _db.Services.Include(x => x.Author)
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (s is null) return new NotFoundResult();
-        if (!MayEdit(s, me)) return new ForbidResult();
+        if (!MayEdit(s, me)) return HttpResults.Forbidden();
 
         var body = await req.ReadJsonAsync<UpdateServiceRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description)
@@ -112,7 +112,7 @@ public class ServicesFunctions
 
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (s is null) return new NotFoundResult();
-        if (!MayEdit(s, me)) return new ForbidResult();
+        if (!MayEdit(s, me)) return HttpResults.Forbidden();
 
         s.DeletedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync();
@@ -129,7 +129,7 @@ public class ServicesFunctions
 
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (s is null) return new NotFoundResult();
-        if (!MayEdit(s, me)) return new ForbidResult();
+        if (!MayEdit(s, me)) return HttpResults.Forbidden();
 
         s.Status = ServiceStatus.Closed;
         s.UpdatedAt = DateTimeOffset.UtcNow;

@@ -10,7 +10,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BulletinBoard.Api.Functions;
 
-/// <summary>Admin-only: view members and grant/revoke the moderator role.</summary>
+/// <summary>
+/// Admin-only: view members and grant/revoke the moderator role.
+///
+/// Routes deliberately say "members", not "admin". The Functions host reserves the
+/// "admin" path segment for its own management API, so a route of "admin/users" is
+/// accepted at indexing time but never dispatched — the caller gets a bare 404 and
+/// nothing is logged. See https://github.com/Azure/azure-functions-host/issues/1781.
+/// </summary>
 public class AdminFunctions
 {
     private readonly AppDbContext _db;
@@ -26,11 +33,11 @@ public class AdminFunctions
 
     [Function("ListUsers")]
     public async Task<IActionResult> ListUsers(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/users")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "members")] HttpRequest req)
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
-        if (!CurrentUserService.IsAdmin(me)) return new ForbidResult();
+        if (!CurrentUserService.IsAdmin(me)) return HttpResults.Forbidden();
 
         var users = await _db.Users.Include(u => u.Roles)
             .Where(u => u.DeletedAt == null)
@@ -46,12 +53,12 @@ public class AdminFunctions
     /// <summary>Grant or revoke a role (moderator/admin). Admin only; audit-logged.</summary>
     [Function("UpdateUserRoles")]
     public async Task<IActionResult> UpdateRoles(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/users/{id:guid}/roles")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "members/{id:guid}/roles")] HttpRequest req,
         Guid id)
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
-        if (!CurrentUserService.IsAdmin(me)) return new ForbidResult();
+        if (!CurrentUserService.IsAdmin(me)) return HttpResults.Forbidden();
 
         var body = await req.ReadJsonAsync<UpdateRolesRequest>();
         if (body is null || (body.Role != Roles.Moderator && body.Role != Roles.Admin))

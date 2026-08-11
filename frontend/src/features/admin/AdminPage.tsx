@@ -3,10 +3,10 @@ import { ErrorNotice, Loading, RequireRole, useAsync } from '../../components/Co
 import type { AdminUser } from '../../types'
 
 function UserTable() {
-  const { data, loading, error, reload } = useAsync(() => api.get<AdminUser[]>('/admin/users'), [])
+  const { data, loading, error, reload } = useAsync(() => api.get<AdminUser[]>('/members'), [])
 
   async function toggle(u: AdminUser, role: 'moderator' | 'admin', grant: boolean) {
-    await api.post(`/admin/users/${u.id}/roles`, { role, grant })
+    await api.post(`/members/${u.id}/roles`, { role, grant })
     reload()
   }
 
