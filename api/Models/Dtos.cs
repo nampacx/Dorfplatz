@@ -3,10 +3,11 @@ using BulletinBoard.Api.Data;
 namespace BulletinBoard.Api.Models;
 
 // ---- Events ----
-public record CreateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location);
+public record CreateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location,
+    string? Category);
 public record RejectEventRequest(string Reason);
 public record EventDto(Guid Id, string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string Status, string? RejectionReason, string AuthorName, DateTimeOffset CreatedAt);
+    string Category, string Status, string? RejectionReason, string AuthorName, DateTimeOffset CreatedAt);
 
 // ---- Services ----
 public record CreateServiceRequest(string Type, string Title, string Description, string? Category);

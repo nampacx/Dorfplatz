@@ -224,6 +224,9 @@ a:hover { text-decoration: underline; }
 .badge.published { background: var(--blue-tint);   color: var(--blue); }
 .badge.rejected  { background: var(--red-tint);    color: var(--red); }
 .badge.role      { background: var(--blue-tint);   color: var(--blue); text-transform: none; letter-spacing: 0.04em; }
+/* Event source (Verwaltung, Vereine, …): outlined so it reads as a label,
+   not as a status like pending/published. */
+.badge.category  { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); }
 
 /* ---- Buttons -----------------------------------------------------------
    Primary is yellow on navy text: the signal colour marks the one action.

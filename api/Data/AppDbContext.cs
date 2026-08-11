@@ -39,8 +39,13 @@ public class AppDbContext : DbContext
         {
             e.Property(x => x.Title).HasMaxLength(200);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            // No HasDefaultValue here on purpose: EF would treat the CLR default
+            // (Verwaltung) as "unset" and silently store Sonstiges instead. Existing
+            // rows are backfilled by the migration instead.
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.RejectionReason).HasMaxLength(1000);
             e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.Category);
             e.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });

@@ -14,6 +14,16 @@ public enum EventStatus
     Rejected
 }
 
+/// <summary>Who the event comes from. Fixed list so the board stays browsable.</summary>
+public enum EventCategory
+{
+    Verwaltung,
+    Vereine,
+    Kirchen,
+    Stadt,
+    Sonstiges
+}
+
 public enum ServiceType
 {
     Seeking,   // "ich suche"

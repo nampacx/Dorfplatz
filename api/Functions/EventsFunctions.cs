@@ -24,17 +24,22 @@ public class EventsFunctions
     }
 
     private static EventDto Map(EventPost e) => new(
-        e.Id, e.Title, e.Description, e.EventDate, e.Location, e.Status.ToString(),
-        e.RejectionReason, e.Author?.DisplayName ?? "Unknown", e.CreatedAt);
+        e.Id, e.Title, e.Description, e.EventDate, e.Location, e.Category.ToString(),
+        e.Status.ToString(), e.RejectionReason, e.Author?.DisplayName ?? "Unknown", e.CreatedAt);
 
     /// <summary>Public: published events only.</summary>
     [Function("ListEvents")]
     public async Task<IActionResult> List(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "events")] HttpRequest req)
     {
-        var items = await _db.Events
+        var query = _db.Events
             .Include(e => e.Author)
-            .Where(e => e.DeletedAt == null && e.Status == EventStatus.Published)
+            .Where(e => e.DeletedAt == null && e.Status == EventStatus.Published);
+
+        if (Enum.TryParse<EventCategory>(req.Query["category"].ToString(), ignoreCase: true, out var category))
+            query = query.Where(e => e.Category == category);
+
+        var items = await query
             .OrderByDescending(e => e.EventDate ?? e.CreatedAt)
             .Take(200)
             .ToListAsync();
@@ -69,12 +74,19 @@ public class EventsFunctions
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
             return new BadRequestObjectResult("Title and description are required.");
 
+        // Unknown or missing categories fall back to Sonstiges. TryParse alone would
+        // leave the enum's first member (Verwaltung), which would be plainly wrong.
+        var category = Enum.TryParse<EventCategory>(body.Category, ignoreCase: true, out var parsed)
+            ? parsed
+            : EventCategory.Sonstiges;
+
         var e = new EventPost
         {
             Title = body.Title.Trim(),
             Description = body.Description.Trim(),
             EventDate = body.EventDate,
             Location = body.Location?.Trim(),
+            Category = category,
             AuthorId = me.Id,
             Status = EventStatus.Pending
         };

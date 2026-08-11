@@ -8,12 +8,17 @@ export interface Me {
   hasConsented: boolean
 }
 
+/** Fixed list, mirrored by the EventCategory enum in the API. */
+export const EVENT_CATEGORIES = ['Verwaltung', 'Vereine', 'Kirchen', 'Stadt', 'Sonstiges'] as const
+export type EventCategory = (typeof EVENT_CATEGORIES)[number]
+
 export interface EventPost {
   id: string
   title: string
   description: string
   eventDate: string | null
   location: string | null
+  category: EventCategory
   status: 'Pending' | 'Published' | 'Rejected'
   rejectionReason: string | null
   authorName: string

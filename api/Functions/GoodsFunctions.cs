@@ -107,7 +107,10 @@ public class GoodsFunctions
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
             return new BadRequestObjectResult("Title and description are required.");
         if (body.Price < 0) return new BadRequestObjectResult("Price must be >= 0.");
-        Enum.TryParse<GoodsCondition>(body.Condition, ignoreCase: true, out var condition);
+        // Fall back to Used, not the enum's first member (New), on an unknown value.
+        var condition = Enum.TryParse<GoodsCondition>(body.Condition, ignoreCase: true, out var parsedCondition)
+            ? parsedCondition
+            : GoodsCondition.Used;
 
         var g = new GoodsPost
         {
@@ -156,7 +159,10 @@ public class GoodsFunctions
         if (keep.Count + added.Count > 8)
             return new BadRequestObjectResult("A listing may have at most 8 images.");
 
-        Enum.TryParse<GoodsCondition>(body.Condition, ignoreCase: true, out var condition);
+        // Fall back to Used, not the enum's first member (New), on an unknown value.
+        var condition = Enum.TryParse<GoodsCondition>(body.Condition, ignoreCase: true, out var parsedCondition)
+            ? parsedCondition
+            : GoodsCondition.Used;
         g.Title = body.Title.Trim();
         g.Description = body.Description.Trim();
         g.Price = body.Price;

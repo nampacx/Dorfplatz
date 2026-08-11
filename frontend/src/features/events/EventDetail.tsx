@@ -44,6 +44,7 @@ export default function EventDetail({
       <h2 className="detail-title">{item.title}</h2>
 
       <dl className="detail-facts">
+        <dt>Kategorie</dt><dd>{item.category}</dd>
         {when && (<><dt>Termin</dt><dd>{when}</dd></>)}
         {item.location && (<><dt>Ort</dt><dd>{item.location}</dd></>)}
         <dt>Eingereicht von</dt><dd>{item.authorName}</dd>
