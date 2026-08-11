@@ -8,7 +8,7 @@
 # Requires: az (logged in, Owner/UAA on the sub) and gh (logged in).
 set -euo pipefail
 
-RG="bb-dev-rg"; LOCATION="westeurope"; APP_NAME="bb-github-deploy"; SEED_EMAIL=""; PG_PASS=""
+RG="bb-dev-rg"; LOCATION="westeurope"; APP_NAME="bb-github-deploy"; SEED_EMAIL=""; PG_PASS=""; REPO=""
 ENVS=("dev" "prod")
 while getopts "s:r:g:l:e:p:" opt; do
   case $opt in
@@ -17,12 +17,19 @@ while getopts "s:r:g:l:e:p:" opt; do
     *) echo "invalid option"; exit 1;;
   esac
 done
-: "${SUB:?-s subscriptionId required}"; : "${REPO:?-r owner/repo required}"
+: "${SUB:?-s subscriptionId required}"
 info() { echo -e "\033[36m==> $*\033[0m"; }
 
 info "Checking prerequisites..."
 az account show >/dev/null || { echo 'Run "az login" first.'; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo 'Run "gh auth login" first.'; exit 1; }
+
+# Auto-detect the GitHub repo from the current checkout when not passed with -r.
+if [ -z "$REPO" ]; then
+  REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
+  [ -n "$REPO" ] || { echo 'Could not detect the GitHub repo. Run inside the cloned repo or pass -r owner/name.'; exit 1; }
+  info "Detected repo: $REPO"
+fi
 
 [ -n "$PG_PASS" ] || { PG_PASS="$(LC_ALL=C tr -dc 'A-Za-z0-9@#%' </dev/urandom | head -c 24)"; info "Generated PostgreSQL admin password."; }
 

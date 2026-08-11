@@ -14,20 +14,23 @@ versions are equivalent — use whichever fits your shell.
 
 ### A) CI/CD (recommended) — GitHub Actions does everything
 
+Run these from inside the cloned repo; the repo slug (`owner/name`) is auto-detected from the
+git remote, so `-r` / `-Repo` is optional (pass it only to target a different repo).
+
 ```bash
 # 1. One-time: create the OIDC deploy identity, RBAC, resource group, and all repo secrets/vars.
-./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -r <owner>/<repo> -e you@example.com
-#   PowerShell: ./scripts/bootstrap-github-oidc.ps1 -SubscriptionId <sub> -Repo <owner>/<repo> -SeedAdminEmail you@example.com
+./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -e you@example.com
+#   PowerShell: ./scripts/bootstrap-github-oidc.ps1 -SubscriptionId <sub> -SeedAdminEmail you@example.com
 
 # 2. Provision + deploy (infra -> API -> frontend), fully self-wiring.
-gh workflow run deploy.yml -r <owner>/<repo>        # or just push to main
+gh workflow run deploy.yml        # or just push to main
 
 # 3. Configure Microsoft sign-in (after step 2 created the SWA host).
-./scripts/setup-entra-auth.sh -r <owner>/<repo>
-#   PowerShell: ./scripts/setup-entra-auth.ps1 -Repo <owner>/<repo>
+./scripts/setup-entra-auth.sh
+#   PowerShell: ./scripts/setup-entra-auth.ps1
 
 # 4. Configure Google sign-in (manual client creation, then apply).
-./scripts/set-google-auth.sh -r <owner>/<repo> -i <clientId> -x <clientSecret>
+./scripts/set-google-auth.sh -i <clientId> -x <clientSecret>
 ```
 
 After step 1, `deploy.yml` needs **no** hand-set secrets: it reads Bicep outputs for the

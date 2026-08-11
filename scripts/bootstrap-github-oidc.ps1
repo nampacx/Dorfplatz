@@ -13,7 +13,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)] [string] $SubscriptionId,
-  [Parameter(Mandatory)] [string] $Repo,                 # e.g. nampacx/BulletinBoard
+  [string] $Repo,                                        # e.g. nampacx/BulletinBoard; auto-detected from the current checkout if omitted
   [string] $ResourceGroup = 'bb-dev-rg',
   [string] $Location = 'westeurope',
   [string] $AppName = 'bb-github-deploy',
@@ -29,6 +29,13 @@ function Info($m) { Write-Host "==> $m" -ForegroundColor Cyan }
 Info 'Checking prerequisites (az, gh)...'
 az account show 1>$null 2>$null; if ($LASTEXITCODE) { throw 'Run "az login" first.' }
 gh auth status 1>$null 2>$null; if ($LASTEXITCODE) { throw 'Run "gh auth login" first.' }
+
+# Auto-detect the GitHub repo from the current checkout when not passed explicitly.
+if (-not $Repo) {
+  $Repo = gh repo view --json nameWithOwner -q .nameWithOwner 2>$null
+  if (-not $Repo) { throw 'Could not detect the GitHub repo. Run inside the cloned repo or pass -Repo <owner>/<name>.' }
+  Info "Detected repo: $Repo"
+}
 
 if (-not $PostgresPassword) {
   $PostgresPassword = -join ((48..57) + (65..90) + (97..122) + (33,35,37,64) | Get-Random -Count 24 | ForEach-Object { [char]$_ })

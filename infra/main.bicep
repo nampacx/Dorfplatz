@@ -12,6 +12,9 @@ param environmentName string = 'dev'
 @description('Azure region for all resources.')
 param location string = resourceGroup().location
 
+@description('Region for PostgreSQL Flexible Server. Separated because it is not available in every region on every subscription.')
+param postgresLocation string = 'swedencentral'
+
 @description('A short, globally-unique-ish token to suffix resource names.')
 param nameToken string = uniqueString(resourceGroup().id, environmentName)
 
@@ -97,7 +100,7 @@ module postgres 'modules/postgres.bicep' = {
   name: 'postgres'
   params: {
     name: '${prefix}-pg-${nameToken}'
-    location: location
+    location: postgresLocation
     tags: tags
     administratorLogin: postgresAdminLogin
     administratorPassword: postgresAdminPassword
