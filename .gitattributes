@@ -1,0 +1,14 @@
+# Normalize to LF in the repo; check out with LF everywhere except where a tool needs CRLF.
+* text=auto eol=lf
+
+# Shell scripts must be LF or they break in bash / CI.
+*.sh text eol=lf
+
+# PowerShell is happiest with CRLF on Windows.
+*.ps1 text eol=crlf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.ico binary
+*.pfx binary

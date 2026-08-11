@@ -1,0 +1,41 @@
+# .NET
+bin/
+obj/
+*.user
+local.settings.json
+
+# Node / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+*.tsbuildinfo
+# tsc output of vite.config.ts (source stays as .ts)
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Compiled Bicep (ARM) output
+infra/main.json
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pfx
+appsettings.*.local.json
+
+# Azure / SWA CLI
+.azure/
+swa-cli.config.local.json
+
+# Editor
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log

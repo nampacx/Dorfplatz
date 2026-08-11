@@ -1,0 +1,17 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "bulletinboard": {
+      "appLocation": "frontend",
+      "apiLocation": "api",
+      "outputLocation": "dist",
+      "appDevserverUrl": "http://localhost:5173",
+      "apiDevserverUrl": "http://localhost:7071",
+      "run": "npm run dev",
+      "appBuildCommand": "npm run build",
+      "apiBuildCommand": "dotnet build",
+      "appPort": 5173,
+      "devserverTimeout": 60000
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+
+    "Postgres__ConnectionString": "Host=localhost;Port=5432;Database=bulletinboard;Username=postgres;Password=postgres",
+
+    "AzureSignalRConnectionString": "Endpoint=https://<your-signalr>.service.signalr.net;AccessKey=<key>;Version=1.0;",
+
+    "Blob__ServiceUri": "http://127.0.0.1:10000/devstoreaccount1",
+    "Blob__ContainerName": "listing-images",
+    "Blob__ManagedIdentityClientId": "",
+    "Blob__LocalConnectionString": "UseDevelopmentStorage=true",
+
+    "Seed__AdminEmail": "you@example.com"
+  },
+  "Host": {
+    "CORS": "*"
+  }
+}

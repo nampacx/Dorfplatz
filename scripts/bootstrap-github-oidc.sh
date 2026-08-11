@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# One-time bootstrap: GitHub -> Azure OIDC deploy identity, RBAC, resource group,
+# and all GitHub Actions secrets/variables. After this, deploy.yml needs no manual wiring.
+#
+# Usage:
+#   ./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -r owner/BulletinBoard [-g bb-dev-rg] [-l westeurope] [-e you@example.com]
+#
+# Requires: az (logged in, Owner/UAA on the sub) and gh (logged in).
+set -euo pipefail
+
+RG="bb-dev-rg"; LOCATION="westeurope"; APP_NAME="bb-github-deploy"; SEED_EMAIL=""; PG_PASS=""
+ENVS=("dev" "prod")
+while getopts "s:r:g:l:e:p:" opt; do
+  case $opt in
+    s) SUB="$OPTARG";; r) REPO="$OPTARG";; g) RG="$OPTARG";;
+    l) LOCATION="$OPTARG";; e) SEED_EMAIL="$OPTARG";; p) PG_PASS="$OPTARG";;
+    *) echo "invalid option"; exit 1;;
+  esac
+done
+: "${SUB:?-s subscriptionId required}"; : "${REPO:?-r owner/repo required}"
+info() { echo -e "\033[36m==> $*\033[0m"; }
+
+info "Checking prerequisites..."
+az account show >/dev/null || { echo 'Run "az login" first.'; exit 1; }
+gh auth status >/dev/null 2>&1 || { echo 'Run "gh auth login" first.'; exit 1; }
+
+[ -n "$PG_PASS" ] || { PG_PASS="$(LC_ALL=C tr -dc 'A-Za-z0-9@#%' </dev/urandom | head -c 24)"; info "Generated PostgreSQL admin password."; }
+
+az account set --subscription "$SUB"
+TENANT="$(az account show --query tenantId -o tsv)"
+
+info "Ensuring resource group '$RG'..."
+az group create -n "$RG" -l "$LOCATION" >/dev/null
+
+info "Creating app registration '$APP_NAME'..."
+APP_ID="$(az ad app list --display-name "$APP_NAME" --query '[0].appId' -o tsv)"
+[ -n "$APP_ID" ] || APP_ID="$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)"
+SP_OID="$(az ad sp list --filter "appId eq '$APP_ID'" --query '[0].id' -o tsv)"
+[ -n "$SP_OID" ] || SP_OID="$(az ad sp create --id "$APP_ID" --query id -o tsv)"
+info "Client id: $APP_ID"
+
+add_fic() {
+  local name="$1" subject="$2"
+  az ad app federated-credential list --id "$APP_ID" --query "[?name=='$name'] | [0].name" -o tsv | grep -q . && return 0
+  az ad app federated-credential create --id "$APP_ID" --parameters \
+    "{\"name\":\"$name\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"$subject\",\"audiences\":[\"api://AzureADTokenExchange\"]}" >/dev/null
+  info "Federated credential: $subject"
+}
+add_fic "gh-main" "repo:${REPO}:ref:refs/heads/main"
+add_fic "gh-pr"   "repo:${REPO}:pull_request"
+for e in "${ENVS[@]}"; do add_fic "gh-env-$e" "repo:${REPO}:environment:$e"; done
+
+SCOPE="/subscriptions/$SUB/resourceGroups/$RG"
+for role in "Contributor" "User Access Administrator"; do
+  info "Assigning '$role'..."
+  az role assignment create --assignee-object-id "$SP_OID" --assignee-principal-type ServicePrincipal \
+    --role "$role" --scope "$SCOPE" >/dev/null 2>&1 || true
+done
+
+for e in "${ENVS[@]}"; do gh api -X PUT "repos/$REPO/environments/$e" >/dev/null 2>&1 || true; done
+
+info "Setting GitHub secrets and variables..."
+set_secret() { printf '%s' "$2" | gh secret set "$1" --repo "$REPO" >/dev/null; }
+set_secret AZURE_CLIENT_ID "$APP_ID"
+set_secret AZURE_TENANT_ID "$TENANT"
+set_secret AZURE_SUBSCRIPTION_ID "$SUB"
+set_secret DEPLOYER_OBJECT_ID "$SP_OID"
+set_secret POSTGRES_ADMIN_PASSWORD "$PG_PASS"
+set_secret SEED_ADMIN_EMAIL "$SEED_EMAIL"
+for n in ENTRA_CLIENT_ID ENTRA_CLIENT_SECRET GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do set_secret "$n" ""; done
+gh variable set AZURE_RESOURCE_GROUP --repo "$REPO" --body "$RG" >/dev/null
+
+echo
+info "Bootstrap complete."
+cat <<EOF
+PostgreSQL admin password (store safely): $PG_PASS
+
+Next:
+  1. gh workflow run deploy.yml --repo $REPO      # provision + deploy
+  2. ./scripts/setup-entra-auth.sh -r $REPO -g $RG # configure Microsoft sign-in
+  3. Google: see scripts/README.md
+EOF

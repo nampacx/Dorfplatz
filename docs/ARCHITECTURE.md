@@ -1,0 +1,101 @@
+# Architecture
+
+## Overview
+
+```
+Browser (React/Vite SPA)
+      │  same-origin /api reverse proxy (no CORS)
+      ▼
+Azure Static Web Apps (Standard)  ── built-in auth (Entra ID + Google), rolesSource=/api/GetRoles
+      │  linked "bring your own" Function App
+      ▼
+Azure Functions (.NET 8 isolated)
+   ├─ HTTP APIs: events, services, goods, chat, admin, account/gdpr
+   ├─ GetRoles: role assignment at sign-in (reads Postgres)
+   ├─ SignalR negotiate + send  ─────────►  Azure SignalR Service (Serverless)
+   ├─ EF Core / Npgsql          ─────────►  Azure Database for PostgreSQL Flexible Server
+   └─ Blob SAS issuing          ─────────►  Azure Blob Storage (listing images)
+Cross-cutting: User-assigned Managed Identity, Key Vault (secrets), Application Insights
+```
+
+## Key decisions
+
+- **Bring-your-own Function App** (not SWA managed functions): managed functions are HTTP-only
+  and support neither Managed Identity, Key Vault references, nor the SignalR trigger/output
+  bindings — all of which this app relies on.
+- **Auth**: SWA built-in authentication with two identity providers — Microsoft Entra ID
+  (`common` issuer, so personal Microsoft accounts work) and Google. Custom roles are resolved
+  by [`GetRoles`](../api/Functions/GetRolesFunction.cs), which reads `UserRole` rows from Postgres.
+  Every protected API additionally re-checks roles server-side via
+  [`CurrentUserService`](../api/Services/CurrentUserService.cs) — the client is never trusted.
+- **Chat**: Azure SignalR in serverless mode. The client negotiates a user-scoped connection;
+  the API persists each message to Postgres and pushes it to the recipient's user group via the
+  SignalR output binding.
+- **Images**: browsers upload directly to Blob using short-lived SAS URLs issued by the API,
+  keeping large payloads off the Functions host.
+
+## Sections & roles
+
+| Section | Write | Moderation |
+| --- | --- | --- |
+| Events & News | any user (→ Pending) | moderator approves/rejects before publish |
+| Services | any user | none |
+| Goods | any user | none (author/admin can delete) |
+
+| Role | Capabilities |
+| --- | --- |
+| `user` | view everything, submit in all sections, chat |
+| `moderator` | + review/approve/reject events |
+| `admin` | + promote users to moderator/admin |
+
+## Data model
+
+See [`api/Data/Entities`](../api/Data/Entities). Enums are stored as strings. Public reads filter
+`DeletedAt == null` and the relevant published/active status. GDPR erasure soft-deletes authored
+content, tombstones messages, removes images and anonymises the profile.
+
+## Deployment
+
+Provisioned by Bicep ([`infra/main.bicep`](../infra/main.bicep)) and fully automated by
+scripts + one GitHub Actions pipeline. See [scripts/README.md](../scripts/README.md) for the
+step-by-step. The short version:
+
+```bash
+# 1. one-time: deploy identity + RBAC + resource group + all repo secrets/vars
+./scripts/bootstrap-github-oidc.sh -s <sub> -r <owner>/<repo> -e you@example.com
+# 2. provision + deploy everything
+gh workflow run deploy.yml -r <owner>/<repo>
+# 3. wire up Microsoft (and then Google) sign-in
+./scripts/setup-entra-auth.sh -r <owner>/<repo>
+```
+
+### The pipeline — [`deploy.yml`](../.github/workflows/deploy.yml)
+
+One workflow, three jobs, **self-wiring**:
+
+1. **infra** — deploys the Bicep and emits the Function App + SWA names as job outputs.
+2. **api** — publishes the Function App (name comes from the infra outputs). No migration
+   step: the API applies EF Core migrations on cold start (`DbInitializer.MigrateAsync`), so
+   the DB never needs to accept connections from the CI runner.
+3. **frontend** — fetches the SWA deploy token at runtime (`az staticwebapp secrets list`) and
+   uploads the built SPA.
+
+[`pr-validate.yml`](../.github/workflows/pr-validate.yml) builds/tests frontend, API and Bicep
+on every PR.
+
+### Configuration (all set by `bootstrap-github-oidc`)
+
+- **Secrets**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
+  `POSTGRES_ADMIN_PASSWORD`, `DEPLOYER_OBJECT_ID`, `SEED_ADMIN_EMAIL`, and the auth secrets
+  `ENTRA_CLIENT_ID` / `ENTRA_CLIENT_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+  (filled by `setup-entra-auth` / `set-google-auth`).
+- **Variables**: `AZURE_RESOURCE_GROUP`.
+
+No SWA token or Function App name is stored by hand — the pipeline derives them.
+
+### Identity providers
+
+`setup-entra-auth` scripts the Microsoft Entra app (personal + work accounts) end-to-end.
+Google requires a one-time manual OAuth client in Google Cloud Console (redirect
+`https://<swa-host>/.auth/login/google/callback`), then `set-google-auth` applies it to the
+SWA settings and GitHub secrets.
