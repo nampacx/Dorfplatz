@@ -147,7 +147,7 @@ public class GoodsFunctions
         var g = await _db.Goods.Include(x => x.Author).Include(x => x.Images)
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (g is null) return new NotFoundResult();
-        if (!MayEdit(g, me)) return new ForbidResult();
+        if (!MayEdit(g, me)) return HttpResults.Forbidden();
 
         var body = await req.ReadJsonAsync<UpdateGoodsRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
@@ -198,7 +198,7 @@ public class GoodsFunctions
 
         var g = await _db.Goods.Include(x => x.Images).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (g is null) return new NotFoundResult();
-        if (!MayEdit(g, me)) return new ForbidResult();
+        if (!MayEdit(g, me)) return HttpResults.Forbidden();
 
         foreach (var img in g.Images) await _blob.DeleteAsync(img.BlobName);
         g.DeletedAt = DateTimeOffset.UtcNow;

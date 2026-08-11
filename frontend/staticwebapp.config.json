@@ -21,7 +21,7 @@
   },
   "routes": [
     { "route": "/api/GetRoles", "allowedRoles": ["anonymous", "authenticated"] },
-    { "route": "/api/admin/*", "allowedRoles": ["admin"] },
+    { "route": "/api/members/*", "allowedRoles": ["admin"] },
     { "route": "/api/moderation/*", "allowedRoles": ["moderator", "admin"] },
     { "route": "/api/account/*", "allowedRoles": ["authenticated"] },
     { "route": "/api/conversations/*", "allowedRoles": ["authenticated"] },

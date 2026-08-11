@@ -102,7 +102,7 @@ public class ChatFunctions
 
         var convo = await _db.Conversations.FirstOrDefaultAsync(c => c.Id == id);
         if (convo is null) return new NotFoundResult();
-        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id) return new ForbidResult();
+        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id) return HttpResults.Forbidden();
 
         var now = DateTimeOffset.UtcNow;
         var marked = await _db.Messages
@@ -122,7 +122,7 @@ public class ChatFunctions
 
         var convo = await _db.Conversations.FirstOrDefaultAsync(c => c.Id == id);
         if (convo is null) return new NotFoundResult();
-        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id) return new ForbidResult();
+        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id) return HttpResults.Forbidden();
 
         var messages = await _db.Messages.Include(m => m.Sender)
             .Where(m => m.ConversationId == id)
@@ -197,7 +197,7 @@ public class ChatFunctions
             .FirstOrDefaultAsync(c => c.Id == body.ConversationId);
         if (convo is null) return new SendMessageOutput { HttpResponse = new NotFoundResult() };
         if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id)
-            return new SendMessageOutput { HttpResponse = new ForbidResult() };
+            return new SendMessageOutput { HttpResponse = HttpResults.Forbidden() };
 
         var recipient = convo.ParticipantAId == me.Id ? convo.ParticipantB : convo.ParticipantA;
 

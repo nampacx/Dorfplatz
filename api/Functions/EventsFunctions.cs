@@ -121,7 +121,7 @@ public class EventsFunctions
         var e = await _db.Events.Include(x => x.Author)
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (e is null) return new NotFoundResult();
-        if (!MayEdit(e, me)) return new ForbidResult();
+        if (!MayEdit(e, me)) return HttpResults.Forbidden();
 
         var body = await req.ReadJsonAsync<UpdateEventRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
@@ -161,7 +161,7 @@ public class EventsFunctions
 
         var e = await _db.Events.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (e is null) return new NotFoundResult();
-        if (!MayEdit(e, me)) return new ForbidResult();
+        if (!MayEdit(e, me)) return HttpResults.Forbidden();
 
         e.DeletedAt = DateTimeOffset.UtcNow;
         _audit.Record("event.delete", me.Id, "event", e.Id);
@@ -176,7 +176,7 @@ public class EventsFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
-        if (!CurrentUserService.IsModerator(me)) return new ForbidResult();
+        if (!CurrentUserService.IsModerator(me)) return HttpResults.Forbidden();
 
         var items = await _db.Events
             .Include(e => e.Author)
@@ -193,7 +193,7 @@ public class EventsFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
-        if (!CurrentUserService.IsModerator(me)) return new ForbidResult();
+        if (!CurrentUserService.IsModerator(me)) return HttpResults.Forbidden();
 
         var e = await _db.Events.Include(x => x.Author).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (e is null) return new NotFoundResult();
@@ -215,7 +215,7 @@ public class EventsFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
-        if (!CurrentUserService.IsModerator(me)) return new ForbidResult();
+        if (!CurrentUserService.IsModerator(me)) return HttpResults.Forbidden();
 
         var body = await req.ReadJsonAsync<RejectEventRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Reason))
