@@ -54,3 +54,6 @@ public record UpdateRolesRequest(string Role, bool Grant);
 
 // ---- Account / me ----
 public record MeDto(Guid Id, string? Email, string? DisplayName, string[] Roles, bool HasConsented);
+
+/// <summary>Only the display name is editable; the email comes from the identity provider.</summary>
+public record UpdateProfileRequest(string DisplayName);

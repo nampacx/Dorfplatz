@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
-import { LoginGate, Loading, useAsync } from '../../components/Common'
+import { ErrorNotice, LoginGate, Loading, useAsync } from '../../components/Common'
 import EventDetail, { STATUS_LABELS } from '../events/EventDetail'
 import EventFormModal from '../events/EventFormModal'
 import type { EventPost } from '../../types'
@@ -62,6 +62,80 @@ function MyEvents() {
   )
 }
 
+const MAX_NAME = 60
+
+/**
+ * Profile card. The display name is the one identity field members control — it is
+ * what appears next to their posts. The email comes from the identity provider and
+ * is how the account is matched, so it is shown but not editable.
+ */
+function ProfilePanel() {
+  const { me, refresh } = useAuth()
+  const [name, setName] = useState(me?.displayName ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  if (!me) return null
+  const trimmed = name.trim()
+  const dirty = trimmed !== (me.displayName ?? '')
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    setSaved(false)
+    try {
+      await api.patch('/account/me', { displayName: trimmed })
+      await refresh()
+      setSaved(true)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="panel" style={{ marginBottom: '1.5rem' }} onSubmit={save}>
+      {error && <ErrorNotice message={error} />}
+      {saved && !dirty && <div className="notice info">Anzeigename gespeichert.</div>}
+
+      <div className="field">
+        <label htmlFor="displayName">Anzeigename</label>
+        <input
+          id="displayName"
+          value={name}
+          maxLength={MAX_NAME}
+          required
+          onChange={(e) => {
+            setName(e.target.value)
+            setSaved(false)
+          }}
+        />
+        <small>So erscheinst du neben deinen Beiträgen. {MAX_NAME - trimmed.length} Zeichen übrig.</small>
+      </div>
+
+      <div className="field">
+        <label htmlFor="email">E-Mail</label>
+        <input id="email" value={me.email ?? '—'} readOnly disabled />
+        <small>Kommt von deinem Microsoft- oder Google-Konto und kann hier nicht geändert werden.</small>
+      </div>
+
+      <div className="field">
+        <label>Rollen</label>
+        <div>
+          {me.roles.map((r) => <span key={r} className="badge role" style={{ marginRight: 4 }}>{r}</span>)}
+        </div>
+      </div>
+
+      <button className="btn" disabled={busy || !dirty || !trimmed}>
+        {busy ? 'Speichert…' : 'Namen speichern'}
+      </button>
+    </form>
+  )
+}
+
 export default function AccountPage() {
   const { me, loading } = useAuth()
   const [busy, setBusy] = useState(false)
@@ -95,11 +169,7 @@ export default function AccountPage() {
     <>
       <div className="page-head"><h1>Mein Konto</h1></div>
 
-      <div className="panel" style={{ marginBottom: '1.5rem' }}>
-        <p><strong>Name:</strong> {me.displayName ?? '—'}</p>
-        <p><strong>E-Mail:</strong> {me.email ?? '—'}</p>
-        <p><strong>Rollen:</strong> {me.roles.map((r) => <span key={r} className="badge role" style={{ marginRight: 4 }}>{r}</span>)}</p>
-      </div>
+      <ProfilePanel />
 
       <h2 style={{ fontFamily: 'var(--serif)' }}>Meine Events</h2>
       <MyEvents />
