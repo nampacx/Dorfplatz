@@ -22,6 +22,12 @@ public class Conversation
     public DateTimeOffset LastMessageAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<Message> Messages { get; set; } = new List<Message>();
+
+    /// <summary>
+    /// Who is allowed to read or write in this thread. Lives on the entity so the rule
+    /// has one home: it gates reading messages, marking them read, and sending.
+    /// </summary>
+    public bool HasParticipant(Guid userId) => ParticipantAId == userId || ParticipantBId == userId;
 }
 
 public class Message

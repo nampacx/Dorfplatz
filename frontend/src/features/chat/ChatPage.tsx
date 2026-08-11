@@ -51,9 +51,11 @@ function Chat() {
   useEffect(() => () => setActiveConversation(null), [setActiveConversation])
 
   // Live delivery rides on the app-wide connection rather than a second one.
+  // Re-subscribing when the thread changes costs a Set swap, so the handler closes
+  // over activeId directly instead of mirroring it into a ref.
   useEffect(() => {
     return subscribe((msg: Message) => {
-      if (msg.conversationId === activeIdRef.current) {
+      if (msg.conversationId === activeId) {
         setMessages((prev) => [...prev, { ...msg, isMine: false }])
         // Already on screen, so it should not linger as unread.
         void markConversationRead(msg.conversationId)
@@ -61,11 +63,7 @@ function Chat() {
       void loadConversations()
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscribe, markConversationRead])
-
-  // Keep a ref of activeId for the subscription closure.
-  const activeIdRef = useRef(activeId)
-  useEffect(() => { activeIdRef.current = activeId }, [activeId])
+  }, [subscribe, markConversationRead, activeId])
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 

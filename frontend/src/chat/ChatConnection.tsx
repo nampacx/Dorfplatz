@@ -4,14 +4,13 @@ import {
 import * as signalR from '@microsoft/signalr'
 import { api } from '../api/client'
 import { useAuth } from '../auth/useAuth'
-import type { Message } from '../types'
+import type { Message, UnreadCount } from '../types'
 
 type Handler = (message: Message) => void
 
 interface ChatConnection {
   /** Unread messages across every conversation, for the nav badge. */
   unreadTotal: number
-  refreshUnread: () => Promise<void>
   markConversationRead: (conversationId: string) => Promise<void>
   /** Tell the provider which thread is on screen so it is not counted as unread. */
   setActiveConversation: (conversationId: string | null) => void
@@ -42,7 +41,7 @@ export function ChatConnectionProvider({ children }: { children: ReactNode }) {
       return
     }
     try {
-      const { total } = await api.get<{ total: number }>('/conversations/unread-count')
+      const { total } = await api.get<UnreadCount>('/conversations/unread-count')
       setUnreadTotal(total)
     } catch {
       // A failed count must not break the page; the next event or reload retries.
@@ -105,7 +104,7 @@ export function ChatConnectionProvider({ children }: { children: ReactNode }) {
 
   return (
     <ChatConnectionContext.Provider
-      value={{ unreadTotal, refreshUnread, markConversationRead, setActiveConversation, subscribe }}
+      value={{ unreadTotal, markConversationRead, setActiveConversation, subscribe }}
     >
       {children}
     </ChatConnectionContext.Provider>

@@ -64,8 +64,9 @@ public class AdminFunctions
         if (body is null || (body.Role != Roles.Moderator && body.Role != Roles.Admin))
             return new BadRequestObjectResult("Role must be 'moderator' or 'admin'.");
 
-        var target = await _db.Users.Include(u => u.Roles)
-            .FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
+        // No Include(u => u.Roles): nothing reads the collection before it is reloaded
+        // below, and the role we care about is fetched on its own line.
+        var target = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
         if (target is null) return new NotFoundResult();
 
         var existing = await _db.UserRoles
