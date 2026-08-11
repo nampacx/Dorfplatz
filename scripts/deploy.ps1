@@ -15,6 +15,7 @@ param(
   [Parameter(Mandatory)] [string] $SubscriptionId,
   [string] $ResourceGroup = 'bb-dev-rg',
   [string] $Location = 'westeurope',
+  [string] $PostgresLocation = 'swedencentral',
   [ValidateSet('dev','prod')] [string] $Environment = 'dev',
   [string] $PostgresPassword,
   [string] $SeedAdminEmail = '',
@@ -44,6 +45,7 @@ $outputs = az deployment group create -g $ResourceGroup `
   --template-file "$root/infra/main.bicep" `
   --parameters `
     environmentName=$Environment `
+    postgresLocation=$PostgresLocation `
     postgresAdminPassword=$PostgresPassword `
     deployerObjectId=$deployerObjectId `
     seedAdminEmail=$SeedAdminEmail `
