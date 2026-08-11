@@ -51,7 +51,10 @@ public static class DbInitializer
 
         if (!existing.Roles.Any(r => r.Role == Roles.Admin))
         {
-            existing.Roles.Add(new UserRole { Role = Roles.Admin, UserId = existing.Id });
+            // Via the DbSet, not existing.Roles — see AdminFunctions.UpdateRoles. When
+            // the user is already in the database, adding through the navigation makes
+            // EF update a row that isn't there instead of inserting one.
+            db.UserRoles.Add(new UserRole { Role = Roles.Admin, UserId = existing.Id });
             await db.SaveChangesAsync();
             logger.LogInformation("Seeded admin role for {Email}", adminEmail);
         }
