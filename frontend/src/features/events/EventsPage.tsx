@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
 import EventDetail from './EventDetail'
+import EventFormModal from './EventFormModal'
 import { EVENT_CATEGORIES, type EventCategory, type EventPost } from '../../types'
 
 function fmtDate(iso: string | null) {
@@ -10,81 +11,10 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function SubmitEventModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({
-    title: '', description: '', eventDate: '', location: '', category: 'Sonstiges' as EventCategory,
-  })
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    try {
-      await api.post('/events', {
-        title: form.title,
-        description: form.description,
-        eventDate: form.eventDate ? new Date(form.eventDate).toISOString() : null,
-        location: form.location || null,
-        category: form.category,
-      })
-      onCreated()
-      onClose()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2 style={{ marginTop: 0 }}>Event einreichen</h2>
-        <p style={{ color: 'var(--ink-soft)', marginTop: 0 }}>
-          Deine Einreichung wird von einem Moderator geprüft, bevor sie öffentlich erscheint.
-        </p>
-        {error && <ErrorNotice message={error} />}
-        <div className="field">
-          <label>Titel</label>
-          <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-        </div>
-        <div className="field">
-          <label>Kategorie</label>
-          <select
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value as EventCategory })}
-          >
-            {EVENT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label>Beschreibung</label>
-          <textarea required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        </div>
-        <div className="row">
-          <div className="field">
-            <label>Datum</label>
-            <input type="date" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} />
-          </div>
-          <div className="field">
-            <label>Ort</label>
-            <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-          </div>
-        </div>
-        <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button type="button" className="btn secondary" onClick={onClose}>Abbrechen</button>
-          <button className="btn" disabled={busy}>{busy ? 'Sende…' : 'Einreichen'}</button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
 export default function EventsPage() {
   const { me } = useAuth()
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<EventPost | null>(null)
   const [selected, setSelected] = useState<EventPost | null>(null)
   const [category, setCategory] = useState<EventCategory | 'all'>('all')
   const { data, loading, error, reload } = useAsync(
@@ -151,8 +81,27 @@ export default function EventsPage() {
         </div>
       )}
 
-      {selected && <EventDetail item={selected} onClose={() => setSelected(null)} />}
-      {showForm && <SubmitEventModal onClose={() => setShowForm(false)} onCreated={reload} />}
+      {selected && (
+        <EventDetail
+          item={selected}
+          onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditing(selected)
+            setSelected(null)
+          }}
+          onDeleted={reload}
+        />
+      )}
+      {(showForm || editing) && (
+        <EventFormModal
+          existing={editing ?? undefined}
+          onClose={() => {
+            setShowForm(false)
+            setEditing(null)
+          }}
+          onSaved={reload}
+        />
+      )}
     </>
   )
 }

@@ -4,11 +4,13 @@ import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { LoginGate, Loading, useAsync } from '../../components/Common'
 import EventDetail, { STATUS_LABELS } from '../events/EventDetail'
+import EventFormModal from '../events/EventFormModal'
 import type { EventPost } from '../../types'
 
 function MyEvents() {
-  const { data, loading } = useAsync(() => api.get<EventPost[]>('/events/mine'), [])
+  const { data, loading, reload } = useAsync(() => api.get<EventPost[]>('/events/mine'), [])
   const [selected, setSelected] = useState<EventPost | null>(null)
+  const [editing, setEditing] = useState<EventPost | null>(null)
 
   if (loading) return <Loading />
   if (!data?.length) return <p style={{ color: 'var(--ink-soft)' }}>Du hast noch keine Events eingereicht.</p>
@@ -38,7 +40,24 @@ function MyEvents() {
           </article>
         ))}
       </div>
-      {selected && <EventDetail item={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <EventDetail
+          item={selected}
+          onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditing(selected)
+            setSelected(null)
+          }}
+          onDeleted={reload}
+        />
+      )}
+      {editing && (
+        <EventFormModal
+          existing={editing}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
+      )}
     </>
   )
 }

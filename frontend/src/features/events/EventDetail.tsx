@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { api } from '../../api/client'
 import DetailModal from '../../components/DetailModal'
 import type { EventPost } from '../../types'
 
@@ -28,12 +29,33 @@ export default function EventDetail({
   item,
   onClose,
   actions,
+  onEdit,
+  onDeleted,
 }: {
   item: EventPost
   onClose: () => void
   actions?: ReactNode
+  onEdit?: () => void
+  onDeleted?: () => void
 }) {
   const when = fmtEventDate(item.eventDate)
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const canManage = item.canEdit && (onEdit || onDeleted)
+
+  async function remove() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.del(`/events/${item.id}`)
+      onDeleted?.()
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+      setBusy(false)
+    }
+  }
 
   return (
     <DetailModal title={item.title} onClose={onClose}>
@@ -52,15 +74,46 @@ export default function EventDetail({
       </dl>
 
       {item.status === 'Rejected' && item.rejectionReason && (
-        <div className="notice error">Grund der Ablehnung: {item.rejectionReason}</div>
+        <div className="notice error">
+          <strong>Grund der Ablehnung:</strong> {item.rejectionReason}
+          {item.canEdit && onEdit && (
+            <div style={{ marginTop: '0.4rem' }}>
+              Du kannst das Event überarbeiten und erneut zur Prüfung einreichen.
+            </div>
+          )}
+        </div>
       )}
 
       <p className="detail-desc">{item.description}</p>
 
-      <div className="detail-actions">
-        {actions}
-        <button className="btn secondary" onClick={onClose}>Schließen</button>
-      </div>
+      {error && <div className="notice error">{error}</div>}
+
+      {confirming ? (
+        <div className="confirm">
+          <p>Dieses Event wirklich löschen? Das lässt sich nicht rückgängig machen.</p>
+          <div className="detail-actions">
+            <button className="btn danger" disabled={busy} onClick={remove}>
+              {busy ? 'Löscht…' : 'Endgültig löschen'}
+            </button>
+            <button className="btn secondary" disabled={busy} onClick={() => setConfirming(false)}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="detail-actions">
+          {actions}
+          {canManage && onEdit && (
+            <button className="btn" onClick={onEdit}>
+              {item.status === 'Rejected' ? 'Überarbeiten und erneut einreichen' : 'Bearbeiten'}
+            </button>
+          )}
+          {canManage && onDeleted && (
+            <button className="btn danger" onClick={() => setConfirming(true)}>Löschen</button>
+          )}
+          <button className="btn secondary" onClick={onClose}>Schließen</button>
+        </div>
+      )}
     </DetailModal>
   )
 }
