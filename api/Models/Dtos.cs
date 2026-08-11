@@ -3,22 +3,35 @@ using BulletinBoard.Api.Data;
 namespace BulletinBoard.Api.Models;
 
 // ---- Events ----
-public record CreateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location);
+public record CreateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location,
+    string? Category);
 public record RejectEventRequest(string Reason);
 public record EventDto(Guid Id, string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string Status, string? RejectionReason, string AuthorName, DateTimeOffset CreatedAt);
+    string Category, string Status, string? RejectionReason, string AuthorName, DateTimeOffset CreatedAt);
 
 // ---- Services ----
 public record CreateServiceRequest(string Type, string Title, string Description, string? Category);
+public record UpdateServiceRequest(string Type, string Title, string Description, string? Category);
 public record ServiceDto(Guid Id, string Type, string Title, string Description, string? Category,
-    string Status, string AuthorName, Guid AuthorId, DateTimeOffset CreatedAt);
+    string Status, string AuthorName, Guid AuthorId, DateTimeOffset CreatedAt, bool CanEdit);
 
 // ---- Goods ----
 public record CreateGoodsRequest(string Title, string Description, decimal Price, string Currency,
     string Condition, string? Category, string? Location, List<string> BlobNames);
+
+/// <summary>
+/// Edit payload. <paramref name="KeepImageIds"/> lists the existing images to retain -
+/// anything omitted is deleted - and <paramref name="NewBlobNames"/> adds freshly
+/// uploaded ones.
+/// </summary>
+public record UpdateGoodsRequest(string Title, string Description, decimal Price, string Currency,
+    string Condition, string? Category, string? Location,
+    List<Guid> KeepImageIds, List<string> NewBlobNames);
+
+public record GoodsImageDto(Guid Id, string Url);
 public record GoodsDto(Guid Id, string Title, string Description, decimal Price, string Currency,
     string Condition, string? Category, string? Location, string Status, string AuthorName, Guid AuthorId,
-    List<string> ImageUrls, DateTimeOffset CreatedAt);
+    List<GoodsImageDto> Images, DateTimeOffset CreatedAt, bool CanEdit);
 
 public record UploadRequest(List<UploadFile> Files);
 public record UploadFile(string ContentType, long SizeBytes, string Extension);

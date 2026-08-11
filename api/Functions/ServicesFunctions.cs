@@ -1,4 +1,3 @@
-using System.Text.Json;
 using BulletinBoard.Api.Data;
 using BulletinBoard.Api.Data.Entities;
 using BulletinBoard.Api.Models;
@@ -21,15 +20,21 @@ public class ServicesFunctions
         _users = users;
     }
 
-    private static ServiceDto Map(ServicePost s) => new(
+    /// <summary>Only the author (or an admin) may change a post.</summary>
+    private static bool MayEdit(ServicePost s, AppUser? viewer) =>
+        viewer is not null && (s.AuthorId == viewer.Id || CurrentUserService.IsAdmin(viewer));
+
+    private static ServiceDto Map(ServicePost s, AppUser? viewer) => new(
         s.Id, s.Type.ToString(), s.Title, s.Description, s.Category, s.Status.ToString(),
-        s.Author?.DisplayName ?? "Unknown", s.AuthorId, s.CreatedAt);
+        s.Author?.DisplayName ?? "Unknown", s.AuthorId, s.CreatedAt, MayEdit(s, viewer));
 
     /// <summary>Public list, optionally filtered by type (seeking|offering).</summary>
     [Function("ListServices")]
     public async Task<IActionResult> List(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "services")] HttpRequest req)
     {
+        var viewer = await _users.GetOrCreateUserAsync(req);
+
         var query = _db.Services.Include(s => s.Author)
             .Where(s => s.DeletedAt == null && s.Status == ServiceStatus.Active);
 
@@ -38,7 +43,7 @@ public class ServicesFunctions
             query = query.Where(s => s.Type == type);
 
         var items = await query.OrderByDescending(s => s.CreatedAt).Take(200).ToListAsync();
-        return new OkObjectResult(items.Select(Map));
+        return new OkObjectResult(items.Select(s => Map(s, viewer)));
     }
 
     [Function("CreateService")]
@@ -64,7 +69,54 @@ public class ServicesFunctions
         _db.Services.Add(s);
         await _db.SaveChangesAsync();
         s.Author = me;
-        return new CreatedResult($"/api/services/{s.Id}", Map(s));
+        return new CreatedResult($"/api/services/{s.Id}", Map(s, me));
+    }
+
+    /// <summary>Edit a post. Author or admin only.</summary>
+    [Function("UpdateService")]
+    public async Task<IActionResult> Update(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "services/{id:guid}")] HttpRequest req,
+        Guid id)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+
+        var s = await _db.Services.Include(x => x.Author)
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
+        if (s is null) return new NotFoundResult();
+        if (!MayEdit(s, me)) return new ForbidResult();
+
+        var body = await req.ReadJsonAsync<UpdateServiceRequest>();
+        if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description)
+            || !Enum.TryParse<ServiceType>(body.Type, ignoreCase: true, out var type))
+            return new BadRequestObjectResult("Type (seeking|offering), title and description are required.");
+
+        s.Type = type;
+        s.Title = body.Title.Trim();
+        s.Description = body.Description.Trim();
+        s.Category = body.Category?.Trim();
+        s.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return new OkObjectResult(Map(s, me));
+    }
+
+    /// <summary>Remove a post. Author or admin only; soft delete keeps the record.</summary>
+    [Function("DeleteService")]
+    public async Task<IActionResult> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "services/{id:guid}")] HttpRequest req,
+        Guid id)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+
+        var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
+        if (s is null) return new NotFoundResult();
+        if (!MayEdit(s, me)) return new ForbidResult();
+
+        s.DeletedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync();
+        return new NoContentResult();
     }
 
     [Function("CloseService")]
@@ -77,7 +129,7 @@ public class ServicesFunctions
 
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (s is null) return new NotFoundResult();
-        if (s.AuthorId != me.Id && !CurrentUserService.IsAdmin(me)) return new ForbidResult();
+        if (!MayEdit(s, me)) return new ForbidResult();
 
         s.Status = ServiceStatus.Closed;
         s.UpdatedAt = DateTimeOffset.UtcNow;

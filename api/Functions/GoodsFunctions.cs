@@ -26,28 +26,34 @@ public class GoodsFunctions
         _blob = blob;
     }
 
-    private async Task<GoodsDto> MapAsync(GoodsPost g)
+    /// <summary>Only the author (or an admin) may change a listing.</summary>
+    private static bool MayEdit(GoodsPost g, AppUser? viewer) =>
+        viewer is not null && (g.AuthorId == viewer.Id || CurrentUserService.IsAdmin(viewer));
+
+    private async Task<GoodsDto> MapAsync(GoodsPost g, AppUser? viewer)
     {
-        var urls = new List<string>();
+        var images = new List<GoodsImageDto>();
         foreach (var img in g.Images.OrderBy(i => i.SortOrder))
-            urls.Add(await _blob.CreateReadUrlAsync(img.BlobName, ReadTtl));
+            images.Add(new GoodsImageDto(img.Id, await _blob.CreateReadUrlAsync(img.BlobName, ReadTtl)));
 
         return new GoodsDto(g.Id, g.Title, g.Description, g.Price, g.Currency, g.Condition.ToString(),
             g.Category, g.Location, g.Status.ToString(), g.Author?.DisplayName ?? "Unknown", g.AuthorId,
-            urls, g.CreatedAt);
+            images, g.CreatedAt, MayEdit(g, viewer));
     }
 
     [Function("ListGoods")]
     public async Task<IActionResult> List(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "goods")] HttpRequest req)
     {
+        var viewer = await _users.GetOrCreateUserAsync(req);
+
         var items = await _db.Goods
             .Include(g => g.Author).Include(g => g.Images)
             .Where(g => g.DeletedAt == null && g.Status == GoodsStatus.Active)
             .OrderByDescending(g => g.CreatedAt).Take(200).ToListAsync();
 
         var dtos = new List<GoodsDto>();
-        foreach (var g in items) dtos.Add(await MapAsync(g));
+        foreach (var g in items) dtos.Add(await MapAsync(g, viewer));
         return new OkObjectResult(dtos);
     }
 
@@ -55,10 +61,11 @@ public class GoodsFunctions
     public async Task<IActionResult> Get(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "goods/{id:guid}")] HttpRequest req, Guid id)
     {
+        var viewer = await _users.GetOrCreateUserAsync(req);
         var g = await _db.Goods.Include(x => x.Author).Include(x => x.Images)
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (g is null) return new NotFoundResult();
-        return new OkObjectResult(await MapAsync(g));
+        return new OkObjectResult(await MapAsync(g, viewer));
     }
 
     /// <summary>Issue short-lived SAS upload URLs; the browser PUTs images directly to Blob.</summary>
@@ -100,7 +107,10 @@ public class GoodsFunctions
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
             return new BadRequestObjectResult("Title and description are required.");
         if (body.Price < 0) return new BadRequestObjectResult("Price must be >= 0.");
-        Enum.TryParse<GoodsCondition>(body.Condition, ignoreCase: true, out var condition);
+        // Fall back to Used, not the enum's first member (New), on an unknown value.
+        var condition = Enum.TryParse<GoodsCondition>(body.Condition, ignoreCase: true, out var parsedCondition)
+            ? parsedCondition
+            : GoodsCondition.Used;
 
         var g = new GoodsPost
         {
@@ -120,7 +130,63 @@ public class GoodsFunctions
         _db.Goods.Add(g);
         await _db.SaveChangesAsync();
         g.Author = me;
-        return new CreatedResult($"/api/goods/{g.Id}", await MapAsync(g));
+        return new CreatedResult($"/api/goods/{g.Id}", await MapAsync(g, me));
+    }
+
+    /// <summary>
+    /// Edit a listing. Author or admin only. Images omitted from KeepImageIds are
+    /// removed from both the database and blob storage.
+    /// </summary>
+    [Function("UpdateGoods")]
+    public async Task<IActionResult> Update(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "goods/{id:guid}")] HttpRequest req, Guid id)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+
+        var g = await _db.Goods.Include(x => x.Author).Include(x => x.Images)
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
+        if (g is null) return new NotFoundResult();
+        if (!MayEdit(g, me)) return new ForbidResult();
+
+        var body = await req.ReadJsonAsync<UpdateGoodsRequest>();
+        if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
+            return new BadRequestObjectResult("Title and description are required.");
+        if (body.Price < 0) return new BadRequestObjectResult("Price must be >= 0.");
+
+        var keep = body.KeepImageIds ?? new List<Guid>();
+        var added = body.NewBlobNames ?? new List<string>();
+        if (keep.Count + added.Count > 8)
+            return new BadRequestObjectResult("A listing may have at most 8 images.");
+
+        // Fall back to Used, not the enum's first member (New), on an unknown value.
+        var condition = Enum.TryParse<GoodsCondition>(body.Condition, ignoreCase: true, out var parsedCondition)
+            ? parsedCondition
+            : GoodsCondition.Used;
+        g.Title = body.Title.Trim();
+        g.Description = body.Description.Trim();
+        g.Price = body.Price;
+        g.Currency = string.IsNullOrWhiteSpace(body.Currency) ? "EUR" : body.Currency.ToUpperInvariant();
+        g.Condition = condition;
+        g.Category = body.Category?.Trim();
+        g.Location = body.Location?.Trim();
+        g.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Drop images the author removed, then append any newly uploaded ones.
+        foreach (var img in g.Images.Where(i => !keep.Contains(i.Id)).ToList())
+        {
+            await _blob.DeleteAsync(img.BlobName);
+            _db.GoodsImages.Remove(img);
+            g.Images.Remove(img);
+        }
+
+        var order = 0;
+        foreach (var img in g.Images.OrderBy(i => i.SortOrder)) img.SortOrder = order++;
+        foreach (var blobName in added)
+            g.Images.Add(new GoodsImage { BlobName = blobName, SortOrder = order++ });
+
+        await _db.SaveChangesAsync();
+        return new OkObjectResult(await MapAsync(g, me));
     }
 
     [Function("DeleteGoods")]
@@ -132,7 +198,7 @@ public class GoodsFunctions
 
         var g = await _db.Goods.Include(x => x.Images).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (g is null) return new NotFoundResult();
-        if (g.AuthorId != me.Id && !CurrentUserService.IsAdmin(me)) return new ForbidResult();
+        if (!MayEdit(g, me)) return new ForbidResult();
 
         foreach (var img in g.Images) await _blob.DeleteAsync(img.BlobName);
         g.DeletedAt = DateTimeOffset.UtcNow;

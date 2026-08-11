@@ -3,26 +3,43 @@ import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { LoginGate, Loading, useAsync } from '../../components/Common'
+import EventDetail, { STATUS_LABELS } from '../events/EventDetail'
 import type { EventPost } from '../../types'
 
 function MyEvents() {
   const { data, loading } = useAsync(() => api.get<EventPost[]>('/events/mine'), [])
+  const [selected, setSelected] = useState<EventPost | null>(null)
+
   if (loading) return <Loading />
   if (!data?.length) return <p style={{ color: 'var(--ink-soft)' }}>Du hast noch keine Events eingereicht.</p>
   return (
-    <div className="grid">
-      {data.map((e) => (
-        <article key={e.id} className="card">
-          <span className={`badge ${e.status.toLowerCase()}`}>
-            {e.status === 'Pending' ? 'In Prüfung' : e.status === 'Published' ? 'Veröffentlicht' : 'Abgelehnt'}
-          </span>
-          <h3>{e.title}</h3>
-          {e.status === 'Rejected' && e.rejectionReason && (
-            <div className="notice error" style={{ marginTop: '0.5rem' }}>Grund: {e.rejectionReason}</div>
-          )}
-        </article>
-      ))}
-    </div>
+    <>
+      <div className="grid">
+        {data.map((e) => (
+          <article
+            key={e.id}
+            className="card card-clickable"
+            role="button"
+            tabIndex={0}
+            aria-label={`${e.title} – Details ansehen`}
+            onClick={() => setSelected(e)}
+            onKeyDown={(ev) => {
+              if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault()
+                setSelected(e)
+              }
+            }}
+          >
+            <span className={`badge ${e.status.toLowerCase()}`}>{STATUS_LABELS[e.status]}</span>
+            <h3>{e.title}</h3>
+            {e.status === 'Rejected' && e.rejectionReason && (
+              <div className="notice error" style={{ marginTop: '0.5rem' }}>Grund: {e.rejectionReason}</div>
+            )}
+          </article>
+        ))}
+      </div>
+      {selected && <EventDetail item={selected} onClose={() => setSelected(null)} />}
+    </>
   )
 }
 
