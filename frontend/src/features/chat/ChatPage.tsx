@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import * as signalR from '@microsoft/signalr'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
+import { useChatConnection } from '../../chat/ChatConnection'
 import { LoginGate, Loading } from '../../components/Common'
 import type { Conversation, Message } from '../../types'
 
@@ -24,6 +24,7 @@ function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
+  const { subscribe, markConversationRead, setActiveConversation } = useChatConnection()
 
   // Load conversation list.
   async function loadConversations() {
@@ -36,32 +37,33 @@ function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Load messages for the active conversation.
+  // Load messages for the active conversation, and clear its unread state.
   useEffect(() => {
     if (!activeId) return
     setParams({ c: activeId }, { replace: true })
+    setActiveConversation(activeId)
     void api.get<Message[]>(`/conversations/${activeId}/messages`).then(setMessages)
+    void markConversationRead(activeId).then(loadConversations)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-  // Real-time delivery via Azure SignalR (serverless).
-  useEffect(() => {
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(api.base) // client POSTs to {base}/negotiate
-      .withAutomaticReconnect()
-      .build()
+  // Release the "on screen" marker when leaving the page, so later messages count.
+  useEffect(() => () => setActiveConversation(null), [setActiveConversation])
 
-    connection.on('newMessage', (msg: Message) => {
-      setMessages((prev) => (msg.conversationId === activeIdRef.current ? [...prev, { ...msg, isMine: false }] : prev))
+  // Live delivery rides on the app-wide connection rather than a second one.
+  useEffect(() => {
+    return subscribe((msg: Message) => {
+      if (msg.conversationId === activeIdRef.current) {
+        setMessages((prev) => [...prev, { ...msg, isMine: false }])
+        // Already on screen, so it should not linger as unread.
+        void markConversationRead(msg.conversationId)
+      }
       void loadConversations()
     })
-
-    connection.start().catch(() => {/* offline fallback: messages still load on open */})
-    return () => void connection.stop()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [subscribe, markConversationRead])
 
-  // Keep a ref of activeId for the SignalR handler closure.
+  // Keep a ref of activeId for the subscription closure.
   const activeIdRef = useRef(activeId)
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
 
@@ -87,8 +89,15 @@ function Chat() {
         <div className="chat">
           <div className="convo-list">
             {conversations.map((c) => (
-              <div key={c.id} className={`convo ${c.id === activeId ? 'active' : ''}`} onClick={() => setActiveId(c.id)}>
-                <div className="name">{c.otherUserName}</div>
+              <div
+                key={c.id}
+                className={`convo ${c.id === activeId ? 'active' : ''} ${c.unreadCount > 0 ? 'unread' : ''}`}
+                onClick={() => setActiveId(c.id)}
+              >
+                <div className="name">
+                  {c.otherUserName}
+                  {c.unreadCount > 0 && <span className="convo-badge">{c.unreadCount}</span>}
+                </div>
                 <div className="time">{c.listingType ? `↳ ${c.listingType}` : ''} · {fmtTime(c.lastMessageAt)}</div>
               </div>
             ))}

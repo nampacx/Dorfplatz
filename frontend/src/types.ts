@@ -76,6 +76,8 @@ export interface Conversation {
   otherUserId: string
   otherUserName: string
   lastMessageAt: string
+  /** Messages from the other person that this viewer has not read yet. */
+  unreadCount: number
 }
 
 export interface Message {

@@ -130,6 +130,16 @@ a:hover { text-decoration: underline; }
 .nav a:hover { background: rgba(255, 255, 255, 0.09); color: #fff; text-decoration: none; }
 .nav a.active { background: var(--signal); color: var(--enamel-deep); }
 
+/* Unread count beside the Nachrichten link. Yellow, like every other
+   "needs your attention" signal on the board. */
+.nav-badge {
+  display: inline-block; min-width: 18px; margin-left: 0.4rem; padding: 0 0.32rem;
+  font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+  line-height: 18px; text-align: center; border-radius: 999px;
+  background: var(--signal); color: var(--enamel-deep);
+}
+.nav a.active .nav-badge { background: var(--enamel-deep); color: var(--signal); }
+
 .topbar .spacer { flex: 1; }
 .userbox { display: flex; align-items: center; gap: 0.7rem; font-size: 0.88rem; }
 .userbox a { color: #c3d2f0; }
@@ -321,7 +331,14 @@ th {
 .convo { padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
 .convo:hover { background: var(--blue-tint); }
 .convo.active { background: var(--blue-tint); border-left-color: var(--signal); }
-.convo .name { font-weight: 700; font-size: 0.93rem; }
+.convo .name { font-weight: 700; font-size: 0.93rem; display: flex; align-items: center; gap: 0.4rem; }
+.convo.unread { border-left-color: var(--signal); }
+.convo.unread .name { color: var(--ink); }
+.convo-badge {
+  min-width: 18px; padding: 0 0.32rem; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 0.66rem; line-height: 18px; text-align: center;
+  background: var(--signal); color: var(--enamel-deep);
+}
 .convo .time { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
 
 .thread {
