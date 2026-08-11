@@ -5,12 +5,15 @@
 #
 # Usage: ./scripts/setup-entra-auth.sh -r owner/repo [-g bb-dev-rg] [-n <swaName>]
 set -euo pipefail
-RG="bb-dev-rg"; APP_NAME="BulletinBoard-Auth"; SWA=""
+RG="bb-dev-rg"; APP_NAME="BulletinBoard-Auth"; SWA=""; REPO=""
 while getopts "r:g:n:" opt; do case $opt in r) REPO="$OPTARG";; g) RG="$OPTARG";; n) SWA="$OPTARG";; esac; done
-: "${REPO:?-r owner/repo required}"
 info() { echo -e "\033[36m==> $*\033[0m"; }
 
 az account show >/dev/null || { echo 'Run "az login" first.'; exit 1; }
+if [ -z "$REPO" ]; then
+  REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
+  [ -n "$REPO" ] || { echo 'Could not detect the GitHub repo. Run inside the cloned repo or pass -r owner/name.'; exit 1; }
+fi
 [ -n "$SWA" ] || SWA="$(az staticwebapp list -g "$RG" --query '[0].name' -o tsv)"
 [ -n "$SWA" ] || { echo "No Static Web App in $RG. Deploy infra first."; exit 1; }
 HOST="$(az staticwebapp show -g "$RG" -n "$SWA" --query defaultHostname -o tsv)"
