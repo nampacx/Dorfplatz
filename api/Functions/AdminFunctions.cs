@@ -68,10 +68,22 @@ public class AdminFunctions
             .FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
         if (target is null) return new NotFoundResult();
 
-        var existing = target.Roles.FirstOrDefault(r => r.Role == body.Role);
+        var existing = await _db.UserRoles
+            .FirstOrDefaultAsync(r => r.UserId == target.Id && r.Role == body.Role);
+
         if (body.Grant && existing is null)
         {
-            target.Roles.Add(new UserRole { Role = body.Role, UserId = target.Id, GrantedByUserId = me.Id });
+            // Added through the DbSet rather than target.Roles. UserRole carries a
+            // client-side Guid in Id, and an entity reached through a tracked
+            // principal's navigation with its key already populated reads to EF as an
+            // existing row: it emits UPDATE ... WHERE Id = <new guid>, which matches
+            // nothing and throws DbUpdateConcurrencyException. DbSet.Add is unambiguous.
+            _db.UserRoles.Add(new UserRole
+            {
+                Role = body.Role,
+                UserId = target.Id,
+                GrantedByUserId = me.Id
+            });
             _audit.Record("role.grant", me.Id, "user", target.Id, new { role = body.Role });
         }
         else if (!body.Grant && existing is not null)
@@ -84,6 +96,9 @@ public class AdminFunctions
         }
 
         await _db.SaveChangesAsync();
+
+        // Re-read rather than trusting the collection loaded before the change.
+        await _db.Entry(target).Collection(t => t.Roles).LoadAsync();
         var roles = CurrentUserService.EffectiveRoles(target).ToArray();
         return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName, roles, target.CreatedAt));
     }

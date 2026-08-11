@@ -182,10 +182,21 @@ public class GoodsFunctions
 
         var order = 0;
         foreach (var img in g.Images.OrderBy(i => i.SortOrder)) img.SortOrder = order++;
+        // Through the DbSet, not g.Images: the listing is already tracked, and a new
+        // child reached via its navigation with Id already populated reads to EF as an
+        // existing row — it emits an UPDATE that matches nothing. (Create is fine: the
+        // whole graph is new there, so everything cascades to Added.)
         foreach (var blobName in added)
-            g.Images.Add(new GoodsImage { BlobName = blobName, SortOrder = order++ });
+            _db.GoodsImages.Add(new GoodsImage
+            {
+                GoodsPostId = g.Id,
+                BlobName = blobName,
+                SortOrder = order++
+            });
 
         await _db.SaveChangesAsync();
+
+        await _db.Entry(g).Collection(x => x.Images).LoadAsync();
         return new OkObjectResult(await MapAsync(g, me));
     }
 
