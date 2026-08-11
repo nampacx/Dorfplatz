@@ -15,6 +15,9 @@ namespace BulletinBoard.Api.Functions;
 /// </summary>
 public class AccountFunctions
 {
+    /// <summary>Comfortably under the column's 200, and a sane length for a name.</summary>
+    private const int MaxDisplayNameLength = 60;
+
     private readonly AppDbContext _db;
     private readonly CurrentUserService _users;
     private readonly AuditService _audit;
@@ -34,6 +37,31 @@ public class AccountFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        var roles = CurrentUserService.EffectiveRoles(me).ToArray();
+        return new OkObjectResult(new MeDto(me.Id, me.Email, me.DisplayName, roles, me.ConsentedAt is not null));
+    }
+
+    /// <summary>
+    /// Change the display name shown next to the member's posts. The email is not
+    /// editable: it comes from the identity provider and is how the account is matched.
+    /// </summary>
+    [Function("UpdateProfile")]
+    public async Task<IActionResult> UpdateProfile(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "account/me")] HttpRequest req)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+
+        var body = await req.ReadJsonAsync<UpdateProfileRequest>();
+        var name = body?.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            return new BadRequestObjectResult("A display name is required.");
+        if (name.Length > MaxDisplayNameLength)
+            return new BadRequestObjectResult($"The display name may be at most {MaxDisplayNameLength} characters.");
+
+        me.DisplayName = name;
+        await _db.SaveChangesAsync();
+
         var roles = CurrentUserService.EffectiveRoles(me).ToArray();
         return new OkObjectResult(new MeDto(me.Id, me.Email, me.DisplayName, roles, me.ConsentedAt is not null));
     }
