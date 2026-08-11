@@ -80,6 +80,11 @@ export interface Conversation {
   unreadCount: number
 }
 
+/** Unread messages across every conversation, for the nav badge. */
+export interface UnreadCount {
+  total: number
+}
+
 export interface Message {
   id: string
   conversationId: string

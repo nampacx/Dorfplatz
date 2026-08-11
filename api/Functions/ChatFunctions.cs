@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using BulletinBoard.Api.Data;
 using BulletinBoard.Api.Data.Entities;
@@ -22,6 +23,14 @@ public class ChatFunctions
         _db = db;
         _users = users;
     }
+
+    /// <summary>
+    /// What "unread" means, in one place: sent by the other person, never opened, and not
+    /// tombstoned by a GDPR erasure. Composed onto a query rather than repeated, so the
+    /// badge, the per-conversation counts and the mark-read update cannot drift apart.
+    /// </summary>
+    private static Expression<Func<Message, bool>> UnreadFor(Guid userId) =>
+        m => m.SenderId != userId && m.ReadAt == null && !m.IsDeleted;
 
     /// <summary>
     /// Returns SignalR connection info scoped to the caller. SWA injects the principal id
@@ -53,7 +62,8 @@ public class ChatFunctions
         // Unread counts in one grouped query rather than one per conversation.
         var ids = convos.Select(c => c.Id).ToList();
         var unread = await _db.Messages
-            .Where(m => ids.Contains(m.ConversationId) && m.SenderId != me.Id && m.ReadAt == null && !m.IsDeleted)
+            .Where(UnreadFor(me.Id))
+            .Where(m => ids.Contains(m.ConversationId))
             .GroupBy(m => m.ConversationId)
             .Select(g => new { ConversationId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.ConversationId, x => x.Count);
@@ -81,9 +91,9 @@ public class ChatFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
 
-        var total = await _db.Messages.CountAsync(m =>
-            m.SenderId != me.Id && m.ReadAt == null && !m.IsDeleted &&
-            (m.Conversation.ParticipantAId == me.Id || m.Conversation.ParticipantBId == me.Id));
+        var total = await _db.Messages
+            .Where(UnreadFor(me.Id))
+            .CountAsync(m => m.Conversation.ParticipantAId == me.Id || m.Conversation.ParticipantBId == me.Id);
 
         return new OkObjectResult(new UnreadCountDto(total));
     }
@@ -102,11 +112,12 @@ public class ChatFunctions
 
         var convo = await _db.Conversations.FirstOrDefaultAsync(c => c.Id == id);
         if (convo is null) return new NotFoundResult();
-        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id) return HttpResults.Forbidden();
+        if (!convo.HasParticipant(me.Id)) return HttpResults.Forbidden();
 
         var now = DateTimeOffset.UtcNow;
         var marked = await _db.Messages
-            .Where(m => m.ConversationId == id && m.SenderId != me.Id && m.ReadAt == null)
+            .Where(UnreadFor(me.Id))
+            .Where(m => m.ConversationId == id)
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.ReadAt, now));
 
         return new OkObjectResult(new { marked });
@@ -122,7 +133,7 @@ public class ChatFunctions
 
         var convo = await _db.Conversations.FirstOrDefaultAsync(c => c.Id == id);
         if (convo is null) return new NotFoundResult();
-        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id) return HttpResults.Forbidden();
+        if (!convo.HasParticipant(me.Id)) return HttpResults.Forbidden();
 
         var messages = await _db.Messages.Include(m => m.Sender)
             .Where(m => m.ConversationId == id)
@@ -196,7 +207,7 @@ public class ChatFunctions
             .Include(c => c.ParticipantA).Include(c => c.ParticipantB)
             .FirstOrDefaultAsync(c => c.Id == body.ConversationId);
         if (convo is null) return new SendMessageOutput { HttpResponse = new NotFoundResult() };
-        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id)
+        if (!convo.HasParticipant(me.Id))
             return new SendMessageOutput { HttpResponse = HttpResults.Forbidden() };
 
         var recipient = convo.ParticipantAId == me.Id ? convo.ParticipantB : convo.ParticipantA;
