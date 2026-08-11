@@ -44,7 +44,8 @@ public record UploadSlot(string BlobName, string UploadUrl);
 public record StartConversationRequest(Guid RecipientId, string? ListingType, Guid? ListingId, string FirstMessage);
 public record SendMessageRequest(Guid ConversationId, string Body);
 public record ConversationDto(Guid Id, string? ListingType, Guid? ListingId, Guid OtherUserId,
-    string OtherUserName, DateTimeOffset LastMessageAt);
+    string OtherUserName, DateTimeOffset LastMessageAt, int UnreadCount);
+public record UnreadCountDto(int Total);
 public record MessageDto(Guid Id, Guid ConversationId, Guid SenderId, string SenderName, string Body,
     DateTimeOffset SentAt, bool IsMine);
 

@@ -50,13 +50,66 @@ public class ChatFunctions
             .OrderByDescending(c => c.LastMessageAt)
             .ToListAsync();
 
+        // Unread counts in one grouped query rather than one per conversation.
+        var ids = convos.Select(c => c.Id).ToList();
+        var unread = await _db.Messages
+            .Where(m => ids.Contains(m.ConversationId) && m.SenderId != me.Id && m.ReadAt == null && !m.IsDeleted)
+            .GroupBy(m => m.ConversationId)
+            .Select(g => new { ConversationId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ConversationId, x => x.Count);
+
         var dtos = convos.Select(c =>
         {
             var other = c.ParticipantAId == me.Id ? c.ParticipantB : c.ParticipantA;
             return new ConversationDto(c.Id, c.ListingType, c.ListingId, other.Id,
-                other.DisplayName ?? "Unknown", c.LastMessageAt);
+                other.DisplayName ?? "Unknown", c.LastMessageAt,
+                unread.TryGetValue(c.Id, out var n) ? n : 0);
         });
         return new OkObjectResult(dtos);
+    }
+
+    /// <summary>
+    /// Total unread messages across every conversation. Kept separate and tiny so the
+    /// app shell can show a badge without loading the whole chat page.
+    /// The literal route is safe next to conversations/{id:guid}: the guid constraint
+    /// stops "unread-count" from matching it.
+    /// </summary>
+    [Function("UnreadCount")]
+    public async Task<IActionResult> UnreadCount(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "conversations/unread-count")] HttpRequest req)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+
+        var total = await _db.Messages.CountAsync(m =>
+            m.SenderId != me.Id && m.ReadAt == null && !m.IsDeleted &&
+            (m.Conversation.ParticipantAId == me.Id || m.Conversation.ParticipantBId == me.Id));
+
+        return new OkObjectResult(new UnreadCountDto(total));
+    }
+
+    /// <summary>
+    /// Mark everything the other person sent in this conversation as read. A separate
+    /// POST rather than a side effect of fetching messages, so a GET stays a GET.
+    /// </summary>
+    [Function("MarkConversationRead")]
+    public async Task<IActionResult> MarkRead(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "conversations/{id:guid}/read")] HttpRequest req,
+        Guid id)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+
+        var convo = await _db.Conversations.FirstOrDefaultAsync(c => c.Id == id);
+        if (convo is null) return new NotFoundResult();
+        if (convo.ParticipantAId != me.Id && convo.ParticipantBId != me.Id) return new ForbidResult();
+
+        var now = DateTimeOffset.UtcNow;
+        var marked = await _db.Messages
+            .Where(m => m.ConversationId == id && m.SenderId != me.Id && m.ReadAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.ReadAt, now));
+
+        return new OkObjectResult(new { marked });
     }
 
     [Function("ListMessages")]

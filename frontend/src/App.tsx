@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/useAuth'
+import { useChatConnection } from './chat/ChatConnection'
 import ConsentBanner from './components/ConsentBanner'
 import EventsPage from './features/events/EventsPage'
 import ModerationPage from './features/events/ModerationPage'
@@ -13,6 +14,7 @@ import LoginPage from './features/account/LoginPage'
 
 function TopBar() {
   const { me, isModerator, isAdmin } = useAuth()
+  const { unreadTotal } = useChatConnection()
   return (
     <header className="topbar">
       <span className="brand">
@@ -22,7 +24,16 @@ function TopBar() {
         <NavLink to="/" end>Events</NavLink>
         <NavLink to="/services">Dienstleistungen</NavLink>
         <NavLink to="/goods">Marktplatz</NavLink>
-        {me && <NavLink to="/chat">Nachrichten</NavLink>}
+        {me && (
+          <NavLink to="/chat">
+            Nachrichten
+            {unreadTotal > 0 && (
+              <span className="nav-badge" aria-label={`${unreadTotal} ungelesene Nachrichten`}>
+                {unreadTotal > 99 ? '99+' : unreadTotal}
+              </span>
+            )}
+          </NavLink>
+        )}
         {isModerator && <NavLink to="/moderation">Moderation</NavLink>}
         {isAdmin && <NavLink to="/admin">Admin</NavLink>}
       </nav>
