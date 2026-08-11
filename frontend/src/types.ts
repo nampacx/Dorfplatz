@@ -23,6 +23,8 @@ export interface EventPost {
   rejectionReason: string | null
   authorName: string
   createdAt: string
+  /** True when the signed-in viewer may edit, resubmit or delete this event. */
+  canEdit: boolean
 }
 
 export interface ServicePost {
