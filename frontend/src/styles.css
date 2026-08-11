@@ -346,11 +346,26 @@ th {
 .consent p { margin: 0; font-size: 0.88rem; max-width: 640px; }
 .consent a { color: var(--signal); }
 
-/* ---- Sign-in gate ------------------------------------------------------ */
+/* ---- Sign-in ----------------------------------------------------------- */
 .gate { text-align: center; padding: 4rem 1rem; }
 .gate h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
 .gate p { color: var(--ink-soft); }
-.gate .providers { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.75rem; flex-wrap: wrap; }
+
+.providers { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.75rem; flex-wrap: wrap; }
+.btn.provider { padding: 0.7rem 1.4rem; font-size: 0.95rem; min-width: 220px; }
+
+.login {
+  max-width: 520px; margin: 3rem auto; text-align: center;
+  background: var(--card); border: 1px solid var(--line);
+  border-top: 4px solid var(--signal);
+  border-radius: var(--radius); padding: 2.5rem 2rem; box-shadow: var(--shadow);
+}
+.login h1 {
+  font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800;
+  letter-spacing: -0.02em; margin: 0.4rem 0 0.75rem;
+}
+.login-lead { color: var(--ink-soft); margin: 0; }
+.login-note { margin: 1.75rem 0 0; font-size: 0.82rem; color: var(--ink-soft); }
 
 /* ---- Modal ------------------------------------------------------------- */
 .modal-backdrop {
@@ -400,8 +415,15 @@ th {
 .detail-facts dd { margin: 0; font-size: 0.92rem; font-weight: 600; }
 
 .detail-desc { white-space: pre-wrap; color: var(--ink); margin: 0 0 1.4rem; }
-.detail-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+.detail-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; }
 .detail-actions .btn { flex: 1; min-width: 150px; }
+
+/* Shown in place of the reply button when replying is not possible. */
+.contact-note {
+  margin: 0; flex: 1;
+  font-family: var(--font-mono); font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft);
+}
 
 /* ---- Responsive -------------------------------------------------------- */
 @media (max-width: 760px) {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 
@@ -19,12 +19,23 @@ export default function ContactButton({
 }) {
   const { me } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  if (!me || me.id === recipientId) return null
+  // Say why there is no reply button, rather than rendering nothing.
+  if (!me) {
+    return (
+      <a className={className} href={`/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(location.pathname)}`}>
+        Anmelden, um zu antworten
+      </a>
+    )
+  }
+  if (me.id === recipientId) {
+    return <p className="contact-note">Das ist dein eigener Eintrag.</p>
+  }
 
   async function send() {
     if (!text.trim()) return

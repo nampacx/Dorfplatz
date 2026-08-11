@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/useAuth'
+import ProviderButtons from '../auth/ProviderButtons'
 import type { Role } from '../types'
 
 export function Loading({ label = 'Lädt…' }: { label?: string }) {
@@ -14,16 +15,13 @@ export function ErrorNotice({ message }: { message: string }) {
   return <div className="notice error">{message}</div>
 }
 
-/** Prompts sign-in via SWA. Both providers are offered. */
+/** Prompts sign-in in place, offering the same providers as the login page. */
 export function LoginGate({ message }: { message?: string }) {
   return (
     <div className="gate">
       <h2>Anmeldung erforderlich</h2>
       <p>{message ?? 'Bitte melde dich an, um fortzufahren.'}</p>
-      <div className="providers">
-        <a className="btn" href="/.auth/login/aad?post_login_redirect_uri=/">Mit Microsoft anmelden</a>
-        <a className="btn secondary" href="/.auth/login/google?post_login_redirect_uri=/">Mit Google anmelden</a>
-      </div>
+      <ProviderButtons />
     </div>
   )
 }

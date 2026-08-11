@@ -27,7 +27,6 @@
     { "route": "/api/conversations/*", "allowedRoles": ["authenticated"] },
     { "route": "/api/messages", "allowedRoles": ["authenticated"] },
     { "route": "/api/negotiate", "allowedRoles": ["authenticated"] },
-    { "route": "/login", "rewrite": "/.auth/login/aad" },
     { "route": "/logout", "redirect": "/.auth/logout" }
   ],
   "navigationFallback": {
@@ -35,7 +34,7 @@
     "exclude": ["/assets/*", "/*.{png,jpg,svg,ico,css,js}"]
   },
   "responseOverrides": {
-    "401": { "statusCode": 302, "redirect": "/.auth/login/aad" }
+    "401": { "statusCode": 302, "redirect": "/login" }
   },
   "globalHeaders": {
     "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https:; connect-src 'self' https: wss:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'",
