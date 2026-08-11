@@ -69,7 +69,7 @@ public class GoodsFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
 
-        var body = await JsonSerializer.DeserializeAsync<UploadRequest>(req.Body);
+        var body = await req.ReadJsonAsync<UploadRequest>();
         if (body is null || body.Files.Count == 0 || body.Files.Count > 8)
             return new BadRequestObjectResult("Provide between 1 and 8 files.");
 
@@ -96,7 +96,7 @@ public class GoodsFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
 
-        var body = await JsonSerializer.DeserializeAsync<CreateGoodsRequest>(req.Body);
+        var body = await req.ReadJsonAsync<CreateGoodsRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
             return new BadRequestObjectResult("Title and description are required.");
         if (body.Price < 0) return new BadRequestObjectResult("Price must be >= 0.");

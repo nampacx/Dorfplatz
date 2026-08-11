@@ -48,7 +48,7 @@ public class ServicesFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
 
-        var body = await JsonSerializer.DeserializeAsync<CreateServiceRequest>(req.Body);
+        var body = await req.ReadJsonAsync<CreateServiceRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description)
             || !Enum.TryParse<ServiceType>(body.Type, ignoreCase: true, out var type))
             return new BadRequestObjectResult("Type (seeking|offering), title and description are required.");

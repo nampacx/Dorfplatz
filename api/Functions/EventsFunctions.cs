@@ -65,7 +65,7 @@ public class EventsFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
 
-        var body = await JsonSerializer.DeserializeAsync<CreateEventRequest>(req.Body);
+        var body = await req.ReadJsonAsync<CreateEventRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
             return new BadRequestObjectResult("Title and description are required.");
 
@@ -133,7 +133,7 @@ public class EventsFunctions
         if (me is null) return new UnauthorizedResult();
         if (!CurrentUserService.IsModerator(me)) return new ForbidResult();
 
-        var body = await JsonSerializer.DeserializeAsync<RejectEventRequest>(req.Body);
+        var body = await req.ReadJsonAsync<RejectEventRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Reason))
             return new BadRequestObjectResult("A rejection reason is required.");
 
