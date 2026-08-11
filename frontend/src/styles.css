@@ -400,8 +400,15 @@ th {
 .detail-facts dd { margin: 0; font-size: 0.92rem; font-weight: 600; }
 
 .detail-desc { white-space: pre-wrap; color: var(--ink); margin: 0 0 1.4rem; }
-.detail-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+.detail-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; }
 .detail-actions .btn { flex: 1; min-width: 150px; }
+
+/* Shown in place of the reply button when replying is not possible. */
+.contact-note {
+  margin: 0; flex: 1;
+  font-family: var(--font-mono); font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft);
+}
 
 /* ---- Responsive -------------------------------------------------------- */
 @media (max-width: 760px) {
