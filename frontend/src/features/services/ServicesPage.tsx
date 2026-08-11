@@ -17,7 +17,34 @@ function fmtDate(iso: string) {
 }
 
 /** Full service post with the complete description and the contact action. */
-function ServiceDetail({ item, onClose }: { item: ServicePost; onClose: () => void }) {
+function ServiceDetail({
+  item,
+  onClose,
+  onEdit,
+  onDeleted,
+}: {
+  item: ServicePost
+  onClose: () => void
+  onEdit: () => void
+  onDeleted: () => void
+}) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function remove() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.del(`/services/${item.id}`)
+      onDeleted()
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+      setBusy(false)
+    }
+  }
+
   return (
     <DetailModal title={item.title} onClose={onClose}>
       <span className={`badge ${item.type.toLowerCase()}`}>{typeLabel(item.type)}</span>
@@ -31,22 +58,58 @@ function ServiceDetail({ item, onClose }: { item: ServicePost; onClose: () => vo
 
       <p className="detail-desc">{item.description}</p>
 
-      <div className="detail-actions">
-        <ContactButton
-          recipientId={item.authorId}
-          listingType="service"
-          listingId={item.id}
-          label={item.type === 'Seeking' ? 'Hilfe anbieten' : 'Anfragen'}
-          className="btn"
-        />
-        <button className="btn secondary" onClick={onClose}>Schließen</button>
-      </div>
+      {error && <ErrorNotice message={error} />}
+
+      {confirming ? (
+        <div className="confirm">
+          <p>Diesen Eintrag wirklich löschen? Das lässt sich nicht rückgängig machen.</p>
+          <div className="detail-actions">
+            <button className="btn danger" disabled={busy} onClick={remove}>
+              {busy ? 'Löscht…' : 'Endgültig löschen'}
+            </button>
+            <button className="btn secondary" disabled={busy} onClick={() => setConfirming(false)}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="detail-actions">
+          <ContactButton
+            recipientId={item.authorId}
+            listingType="service"
+            listingId={item.id}
+            label={item.type === 'Seeking' ? 'Hilfe anbieten' : 'Anfragen'}
+            className="btn"
+          />
+          {item.canEdit && (
+            <>
+              <button className="btn secondary" onClick={onEdit}>Bearbeiten</button>
+              <button className="btn danger" onClick={() => setConfirming(true)}>Löschen</button>
+            </>
+          )}
+          <button className="btn secondary" onClick={onClose}>Schließen</button>
+        </div>
+      )}
     </DetailModal>
   )
 }
 
-function SubmitServiceModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ type: 'Offering', title: '', description: '', category: '' })
+/** Create when `existing` is omitted, otherwise edit that post. */
+function ServiceFormModal({
+  existing,
+  onClose,
+  onSaved,
+}: {
+  existing?: ServicePost
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [form, setForm] = useState({
+    type: existing?.type ?? 'Offering',
+    title: existing?.title ?? '',
+    description: existing?.description ?? '',
+    category: existing?.category ?? '',
+  })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,8 +118,10 @@ function SubmitServiceModal({ onClose, onCreated }: { onClose: () => void; onCre
     setBusy(true)
     setError(null)
     try {
-      await api.post('/services', { ...form, category: form.category || null })
-      onCreated()
+      const payload = { ...form, category: form.category || null }
+      if (existing) await api.patch(`/services/${existing.id}`, payload)
+      else await api.post('/services', payload)
+      onSaved()
       onClose()
     } catch (e) {
       setError((e as Error).message)
@@ -68,11 +133,16 @@ function SubmitServiceModal({ onClose, onCreated }: { onClose: () => void; onCre
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2 style={{ marginTop: 0 }}>Dienstleistung einstellen</h2>
+        <h2 style={{ marginTop: 0 }}>
+          {existing ? 'Eintrag bearbeiten' : 'Dienstleistung einstellen'}
+        </h2>
         {error && <ErrorNotice message={error} />}
         <div className="field">
           <label>Art</label>
-          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          <select
+            value={form.type}
+            onChange={(e) => setForm({ ...form, type: e.target.value as ServicePost['type'] })}
+          >
             <option value="Offering">Ich biete</option>
             <option value="Seeking">Ich suche</option>
           </select>
@@ -91,7 +161,9 @@ function SubmitServiceModal({ onClose, onCreated }: { onClose: () => void; onCre
         </div>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onClose}>Abbrechen</button>
-          <button className="btn" disabled={busy}>{busy ? 'Sende…' : 'Einstellen'}</button>
+          <button className="btn" disabled={busy}>
+            {busy ? 'Speichert…' : existing ? 'Speichern' : 'Einstellen'}
+          </button>
         </div>
       </form>
     </div>
@@ -102,6 +174,7 @@ export default function ServicesPage() {
   const { me } = useAuth()
   const [filter, setFilter] = useState<Filter>('all')
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<ServicePost | null>(null)
   const [selected, setSelected] = useState<ServicePost | null>(null)
   const { data, loading, error, reload } = useAsync(
     () => api.get<ServicePost[]>(`/services${filter === 'all' ? '' : `?type=${filter}`}`),
@@ -160,8 +233,27 @@ export default function ServicesPage() {
         </div>
       )}
 
-      {selected && <ServiceDetail item={selected} onClose={() => setSelected(null)} />}
-      {showForm && <SubmitServiceModal onClose={() => setShowForm(false)} onCreated={reload} />}
+      {selected && (
+        <ServiceDetail
+          item={selected}
+          onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditing(selected)
+            setSelected(null)
+          }}
+          onDeleted={reload}
+        />
+      )}
+      {(showForm || editing) && (
+        <ServiceFormModal
+          existing={editing ?? undefined}
+          onClose={() => {
+            setShowForm(false)
+            setEditing(null)
+          }}
+          onSaved={reload}
+        />
+      )}
     </>
   )
 }

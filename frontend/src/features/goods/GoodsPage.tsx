@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
 import ContactButton from '../../components/ContactButton'
 import DetailModal from '../../components/DetailModal'
-import type { GoodsPost, UploadSlot } from '../../types'
+import type { GoodsImage, GoodsPost, UploadSlot } from '../../types'
 
 const CONDITIONS = ['New', 'LikeNew', 'Good', 'Used', 'Defective']
 const CONDITION_LABELS: Record<string, string> = {
@@ -20,20 +20,46 @@ function fmtDate(iso: string) {
 }
 
 /** Full listing: all images, complete description and the contact action. */
-function GoodsDetail({ item, onClose }: { item: GoodsPost; onClose: () => void }) {
+function GoodsDetail({
+  item,
+  onClose,
+  onEdit,
+  onDeleted,
+}: {
+  item: GoodsPost
+  onClose: () => void
+  onEdit: () => void
+  onDeleted: () => void
+}) {
   const [active, setActive] = useState(0)
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function remove() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.del(`/goods/${item.id}`)
+      onDeleted()
+      onClose()
+    } catch (e) {
+      setError((e as Error).message)
+      setBusy(false)
+    }
+  }
 
   return (
     <DetailModal title={item.title} onClose={onClose}>
-      {item.imageUrls.length > 0 && (
+      {item.images.length > 0 && (
         <>
-          <img className="detail-hero" src={item.imageUrls[active]} alt={item.title} />
-          {item.imageUrls.length > 1 && (
+          <img className="detail-hero" src={item.images[active]?.url} alt={item.title} />
+          {item.images.length > 1 && (
             <div className="thumbrow">
-              {item.imageUrls.map((url, i) => (
+              {item.images.map((img, i) => (
                 <img
-                  key={url}
-                  src={url}
+                  key={img.id}
+                  src={img.url}
                   alt={`${item.title} ${i + 1}`}
                   className={i === active ? 'active' : undefined}
                   onClick={() => setActive(i)}
@@ -57,16 +83,38 @@ function GoodsDetail({ item, onClose }: { item: GoodsPost; onClose: () => void }
 
       <p className="detail-desc">{item.description}</p>
 
-      <div className="detail-actions">
-        <ContactButton
-          recipientId={item.authorId}
-          listingType="goods"
-          listingId={item.id}
-          label="Verkäufer kontaktieren"
-          className="btn"
-        />
-        <button className="btn secondary" onClick={onClose}>Schließen</button>
-      </div>
+      {error && <ErrorNotice message={error} />}
+
+      {confirming ? (
+        <div className="confirm">
+          <p>Diese Anzeige wirklich löschen? Bilder werden mit entfernt.</p>
+          <div className="detail-actions">
+            <button className="btn danger" disabled={busy} onClick={remove}>
+              {busy ? 'Löscht…' : 'Endgültig löschen'}
+            </button>
+            <button className="btn secondary" disabled={busy} onClick={() => setConfirming(false)}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="detail-actions">
+          <ContactButton
+            recipientId={item.authorId}
+            listingType="goods"
+            listingId={item.id}
+            label="Verkäufer kontaktieren"
+            className="btn"
+          />
+          {item.canEdit && (
+            <>
+              <button className="btn secondary" onClick={onEdit}>Bearbeiten</button>
+              <button className="btn danger" onClick={() => setConfirming(true)}>Löschen</button>
+            </>
+          )}
+          <button className="btn secondary" onClick={onClose}>Schließen</button>
+        </div>
+      )}
     </DetailModal>
   )
 }
@@ -96,20 +144,57 @@ async function uploadImages(files: File[]): Promise<string[]> {
   return slots.map((s) => s.blobName)
 }
 
-function SubmitGoodsModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+/** Create when `existing` is omitted, otherwise edit that listing. */
+function GoodsFormModal({
+  existing,
+  onClose,
+  onSaved,
+}: {
+  existing?: GoodsPost
+  onClose: () => void
+  onSaved: () => void
+}) {
   const [form, setForm] = useState({
-    title: '', description: '', price: '', currency: 'EUR', condition: 'Used', category: '', location: '',
+    title: existing?.title ?? '',
+    description: existing?.description ?? '',
+    price: existing ? String(existing.price) : '',
+    currency: existing?.currency ?? 'EUR',
+    condition: existing?.condition ?? 'Used',
+    category: existing?.category ?? '',
+    location: existing?.location ?? '',
   })
+  // Existing images start kept; unchecking one removes it on save.
+  const [keptImages, setKeptImages] = useState<GoodsImage[]>(existing?.images ?? [])
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const slotsLeft = 8 - keptImages.length
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      const blobNames = await uploadImages(files.slice(0, 8))
+      const blobNames = await uploadImages(files.slice(0, Math.max(slotsLeft, 0)))
+
+      if (existing) {
+        await api.patch(`/goods/${existing.id}`, {
+          title: form.title,
+          description: form.description,
+          price: Number(form.price) || 0,
+          currency: form.currency,
+          condition: form.condition,
+          category: form.category || null,
+          location: form.location || null,
+          keepImageIds: keptImages.map((i) => i.id),
+          newBlobNames: blobNames,
+        })
+        onSaved()
+        onClose()
+        return
+      }
+
       await api.post('/goods', {
         title: form.title,
         description: form.description,
@@ -120,7 +205,7 @@ function SubmitGoodsModal({ onClose, onCreated }: { onClose: () => void; onCreat
         location: form.location || null,
         blobNames,
       })
-      onCreated()
+      onSaved()
       onClose()
     } catch (e) {
       setError((e as Error).message)
@@ -132,7 +217,7 @@ function SubmitGoodsModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h2 style={{ marginTop: 0 }}>Artikel anbieten</h2>
+        <h2 style={{ marginTop: 0 }}>{existing ? 'Anzeige bearbeiten' : 'Artikel anbieten'}</h2>
         {error && <ErrorNotice message={error} />}
         <div className="field">
           <label>Titel</label>
@@ -164,14 +249,44 @@ function SubmitGoodsModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
           </div>
         </div>
+        {keptImages.length > 0 && (
+          <div className="field">
+            <label>Vorhandene Bilder</label>
+            <div className="image-editor">
+              {keptImages.map((img) => (
+                <div key={img.id} className="image-editor-item">
+                  <img src={img.url} alt="" />
+                  <button
+                    type="button"
+                    className="image-remove"
+                    aria-label="Bild entfernen"
+                    onClick={() => setKeptImages(keptImages.filter((k) => k.id !== img.id))}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="field">
-          <label>Bilder (bis zu 8)</label>
-          <input type="file" accept="image/*" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
-          {files.length > 0 && <small>{files.length} Datei(en) ausgewählt</small>}
+          <label>{existing ? 'Bilder hinzufügen' : 'Bilder (bis zu 8)'}</label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            disabled={slotsLeft <= 0}
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+          />
+          {slotsLeft <= 0
+            ? <small>Maximal 8 Bilder. Entferne eines, um Platz zu schaffen.</small>
+            : files.length > 0 && <small>{files.length} Datei(en) ausgewählt · noch {slotsLeft} frei</small>}
         </div>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onClose}>Abbrechen</button>
-          <button className="btn" disabled={busy}>{busy ? 'Lade hoch…' : 'Anbieten'}</button>
+          <button className="btn" disabled={busy}>
+            {busy ? 'Speichert…' : existing ? 'Speichern' : 'Anbieten'}
+          </button>
         </div>
       </form>
     </div>
@@ -181,6 +296,7 @@ function SubmitGoodsModal({ onClose, onCreated }: { onClose: () => void; onCreat
 export default function GoodsPage() {
   const { me } = useAuth()
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<GoodsPost | null>(null)
   const [selected, setSelected] = useState<GoodsPost | null>(null)
   const { data, loading, error, reload } = useAsync(() => api.get<GoodsPost[]>('/goods'), [])
 
@@ -216,7 +332,7 @@ export default function GoodsPage() {
                 }
               }}
             >
-              {g.imageUrls[0] && <img className="thumb" src={g.imageUrls[0]} alt={g.title} loading="lazy" />}
+              {g.images[0] && <img className="thumb" src={g.images[0].url} alt={g.title} loading="lazy" />}
               <h3>{g.title}</h3>
               <div className="price">{money(g.price, g.currency)}</div>
               <div className="desc desc-clamp">{g.description}</div>
@@ -229,8 +345,27 @@ export default function GoodsPage() {
         </div>
       )}
 
-      {selected && <GoodsDetail item={selected} onClose={() => setSelected(null)} />}
-      {showForm && <SubmitGoodsModal onClose={() => setShowForm(false)} onCreated={reload} />}
+      {selected && (
+        <GoodsDetail
+          item={selected}
+          onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditing(selected)
+            setSelected(null)
+          }}
+          onDeleted={reload}
+        />
+      )}
+      {(showForm || editing) && (
+        <GoodsFormModal
+          existing={editing ?? undefined}
+          onClose={() => {
+            setShowForm(false)
+            setEditing(null)
+          }}
+          onSaved={reload}
+        />
+      )}
     </>
   )
 }

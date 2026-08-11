@@ -30,6 +30,13 @@ export interface ServicePost {
   authorName: string
   authorId: string
   createdAt: string
+  /** True when the signed-in viewer may edit or delete this post. */
+  canEdit: boolean
+}
+
+export interface GoodsImage {
+  id: string
+  url: string
 }
 
 export interface GoodsPost {
@@ -44,8 +51,10 @@ export interface GoodsPost {
   status: string
   authorName: string
   authorId: string
-  imageUrls: string[]
+  images: GoodsImage[]
   createdAt: string
+  /** True when the signed-in viewer may edit or delete this listing. */
+  canEdit: boolean
 }
 
 export interface UploadSlot {

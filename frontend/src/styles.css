@@ -418,6 +418,29 @@ th {
 .detail-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; }
 .detail-actions .btn { flex: 1; min-width: 150px; }
 
+/* Destructive confirmation inside the detail view. */
+.confirm {
+  border: 1px solid var(--red); border-left-width: 4px;
+  background: var(--red-tint); border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+}
+.confirm p { margin: 0 0 0.8rem; font-size: 0.92rem; color: var(--ink); }
+
+/* Removing images while editing a listing. */
+.image-editor { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.image-editor-item { position: relative; }
+.image-editor-item img {
+  height: 72px; width: 72px; object-fit: cover;
+  border-radius: 2px; border: 1px solid var(--line-strong);
+}
+.image-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 22px; height: 22px; padding: 0; line-height: 1;
+  border: none; border-radius: 50%; cursor: pointer;
+  background: var(--red); color: #fff; font-size: 1rem; font-weight: 700;
+}
+.image-remove:hover { filter: brightness(1.1); }
+
 /* Shown in place of the reply button when replying is not possible. */
 .contact-note {
   margin: 0; flex: 1;
