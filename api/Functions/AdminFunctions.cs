@@ -53,7 +53,7 @@ public class AdminFunctions
         if (me is null) return new UnauthorizedResult();
         if (!CurrentUserService.IsAdmin(me)) return new ForbidResult();
 
-        var body = await JsonSerializer.DeserializeAsync<UpdateRolesRequest>(req.Body);
+        var body = await req.ReadJsonAsync<UpdateRolesRequest>();
         if (body is null || (body.Role != Roles.Moderator && body.Role != Roles.Admin))
             return new BadRequestObjectResult("Role must be 'moderator' or 'admin'.");
 

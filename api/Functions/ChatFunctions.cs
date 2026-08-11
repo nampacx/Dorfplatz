@@ -89,7 +89,7 @@ public class ChatFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new StartConversationOutput { HttpResponse = new UnauthorizedResult() };
 
-        var body = await JsonSerializer.DeserializeAsync<StartConversationRequest>(req.Body);
+        var body = await req.ReadJsonAsync<StartConversationRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.FirstMessage) || body.RecipientId == me.Id)
             return new StartConversationOutput { HttpResponse = new BadRequestObjectResult("Invalid recipient or message.") };
 
@@ -135,7 +135,7 @@ public class ChatFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new SendMessageOutput { HttpResponse = new UnauthorizedResult() };
 
-        var body = await JsonSerializer.DeserializeAsync<SendMessageRequest>(req.Body);
+        var body = await req.ReadJsonAsync<SendMessageRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Body))
             return new SendMessageOutput { HttpResponse = new BadRequestObjectResult("Message body required.") };
 
