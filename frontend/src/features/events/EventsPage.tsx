@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
+import EventDetail from './EventDetail'
 import type { EventPost } from '../../types'
 
 function fmtDate(iso: string | null) {
@@ -72,6 +73,7 @@ function SubmitEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
 export default function EventsPage() {
   const { me } = useAuth()
   const [showForm, setShowForm] = useState(false)
+  const [selected, setSelected] = useState<EventPost | null>(null)
   const { data, loading, error, reload } = useAsync(() => api.get<EventPost[]>('/events'), [])
 
   return (
@@ -92,9 +94,22 @@ export default function EventsPage() {
       ) : (
         <div className="grid">
           {data.map((e) => (
-            <article key={e.id} className="card">
+            <article
+              key={e.id}
+              className="card card-clickable"
+              role="button"
+              tabIndex={0}
+              aria-label={`${e.title} – Details ansehen`}
+              onClick={() => setSelected(e)}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                  ev.preventDefault()
+                  setSelected(e)
+                }
+              }}
+            >
               <h3>{e.title}</h3>
-              <div className="desc">{e.description}</div>
+              <div className="desc desc-clamp">{e.description}</div>
               <div className="meta">
                 <span>{[fmtDate(e.eventDate), e.location].filter(Boolean).join(' · ')}</span>
                 <span>{e.authorName}</span>
@@ -104,6 +119,7 @@ export default function EventsPage() {
         </div>
       )}
 
+      {selected && <EventDetail item={selected} onClose={() => setSelected(null)} />}
       {showForm && <SubmitEventModal onClose={() => setShowForm(false)} onCreated={reload} />}
     </>
   )
