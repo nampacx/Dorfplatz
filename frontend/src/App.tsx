@@ -9,6 +9,7 @@ import ChatPage from './features/chat/ChatPage'
 import AdminPage from './features/admin/AdminPage'
 import AccountPage from './features/account/AccountPage'
 import PrivacyPage from './features/account/PrivacyPage'
+import LoginPage from './features/account/LoginPage'
 
 function TopBar() {
   const { me, isModerator, isAdmin } = useAuth()
@@ -33,7 +34,7 @@ function TopBar() {
             <a className="btn secondary small" href="/.auth/logout?post_logout_redirect_uri=/">Abmelden</a>
           </>
         ) : (
-          <a className="btn small" href="/.auth/login/aad?post_login_redirect_uri=/">Anmelden</a>
+          <NavLink className="btn small" to="/login">Anmelden</NavLink>
         )}
       </div>
     </header>
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/login" element={<LoginPage />} />
         </Routes>
       </main>
       <ConsentBanner />
