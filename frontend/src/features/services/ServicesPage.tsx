@@ -3,9 +3,47 @@ import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
 import ContactButton from '../../components/ContactButton'
+import DetailModal from '../../components/DetailModal'
 import type { ServicePost } from '../../types'
 
 type Filter = 'all' | 'seeking' | 'offering'
+
+function typeLabel(type: ServicePost['type']) {
+  return type === 'Seeking' ? 'Ich suche' : 'Ich biete'
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+/** Full service post with the complete description and the contact action. */
+function ServiceDetail({ item, onClose }: { item: ServicePost; onClose: () => void }) {
+  return (
+    <DetailModal title={item.title} onClose={onClose}>
+      <span className={`badge ${item.type.toLowerCase()}`}>{typeLabel(item.type)}</span>
+      <h2 className="detail-title">{item.title}</h2>
+
+      <dl className="detail-facts">
+        {item.category && (<><dt>Kategorie</dt><dd>{item.category}</dd></>)}
+        <dt>Von</dt><dd>{item.authorName}</dd>
+        <dt>Eingestellt</dt><dd>{fmtDate(item.createdAt)}</dd>
+      </dl>
+
+      <p className="detail-desc">{item.description}</p>
+
+      <div className="detail-actions">
+        <ContactButton
+          recipientId={item.authorId}
+          listingType="service"
+          listingId={item.id}
+          label={item.type === 'Seeking' ? 'Hilfe anbieten' : 'Anfragen'}
+          className="btn"
+        />
+        <button className="btn secondary" onClick={onClose}>Schließen</button>
+      </div>
+    </DetailModal>
+  )
+}
 
 function SubmitServiceModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({ type: 'Offering', title: '', description: '', category: '' })
@@ -64,6 +102,7 @@ export default function ServicesPage() {
   const { me } = useAuth()
   const [filter, setFilter] = useState<Filter>('all')
   const [showForm, setShowForm] = useState(false)
+  const [selected, setSelected] = useState<ServicePost | null>(null)
   const { data, loading, error, reload } = useAsync(
     () => api.get<ServicePost[]>(`/services${filter === 'all' ? '' : `?type=${filter}`}`),
     [filter],
@@ -95,22 +134,33 @@ export default function ServicesPage() {
       ) : (
         <div className="grid">
           {data.map((s) => (
-            <article key={s.id} className="card">
-              <span className={`badge ${s.type.toLowerCase()}`}>{s.type === 'Seeking' ? 'Ich suche' : 'Ich biete'}</span>
+            <article
+              key={s.id}
+              className="card card-clickable"
+              role="button"
+              tabIndex={0}
+              aria-label={`${s.title} – Details ansehen`}
+              onClick={() => setSelected(s)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSelected(s)
+                }
+              }}
+            >
+              <span className={`badge ${s.type.toLowerCase()}`}>{typeLabel(s.type)}</span>
               <h3>{s.title}</h3>
-              <div className="desc">{s.description}</div>
+              <div className="desc desc-clamp">{s.description}</div>
               <div className="meta">
                 <span>{s.category}</span>
                 <span>{s.authorName}</span>
-              </div>
-              <div style={{ marginTop: '0.7rem' }}>
-                <ContactButton recipientId={s.authorId} listingType="service" listingId={s.id} />
               </div>
             </article>
           ))}
         </div>
       )}
 
+      {selected && <ServiceDetail item={selected} onClose={() => setSelected(null)} />}
       {showForm && <SubmitServiceModal onClose={() => setShowForm(false)} onCreated={reload} />}
     </>
   )

@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
 import ContactButton from '../../components/ContactButton'
+import DetailModal from '../../components/DetailModal'
 import type { GoodsPost, UploadSlot } from '../../types'
 
 const CONDITIONS = ['New', 'LikeNew', 'Good', 'Used', 'Defective']
@@ -12,6 +13,62 @@ const CONDITION_LABELS: Record<string, string> = {
 
 function money(v: number, c: string) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: c || 'EUR' }).format(v)
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+/** Full listing: all images, complete description and the contact action. */
+function GoodsDetail({ item, onClose }: { item: GoodsPost; onClose: () => void }) {
+  const [active, setActive] = useState(0)
+
+  return (
+    <DetailModal title={item.title} onClose={onClose}>
+      {item.imageUrls.length > 0 && (
+        <>
+          <img className="detail-hero" src={item.imageUrls[active]} alt={item.title} />
+          {item.imageUrls.length > 1 && (
+            <div className="thumbrow">
+              {item.imageUrls.map((url, i) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt={`${item.title} ${i + 1}`}
+                  className={i === active ? 'active' : undefined}
+                  onClick={() => setActive(i)}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      <h2 className="detail-title">{item.title}</h2>
+      <div className="price">{money(item.price, item.currency)}</div>
+
+      <dl className="detail-facts">
+        <dt>Zustand</dt><dd>{CONDITION_LABELS[item.condition] ?? item.condition}</dd>
+        {item.category && (<><dt>Kategorie</dt><dd>{item.category}</dd></>)}
+        {item.location && (<><dt>Ort</dt><dd>{item.location}</dd></>)}
+        <dt>Anbieter</dt><dd>{item.authorName}</dd>
+        <dt>Eingestellt</dt><dd>{fmtDate(item.createdAt)}</dd>
+      </dl>
+
+      <p className="detail-desc">{item.description}</p>
+
+      <div className="detail-actions">
+        <ContactButton
+          recipientId={item.authorId}
+          listingType="goods"
+          listingId={item.id}
+          label="Verkäufer kontaktieren"
+          className="btn"
+        />
+        <button className="btn secondary" onClick={onClose}>Schließen</button>
+      </div>
+    </DetailModal>
+  )
 }
 
 /** Uploads the selected files to Blob via SAS, returns the stored blob names. */
@@ -124,6 +181,7 @@ function SubmitGoodsModal({ onClose, onCreated }: { onClose: () => void; onCreat
 export default function GoodsPage() {
   const { me } = useAuth()
   const [showForm, setShowForm] = useState(false)
+  const [selected, setSelected] = useState<GoodsPost | null>(null)
   const { data, loading, error, reload } = useAsync(() => api.get<GoodsPost[]>('/goods'), [])
 
   return (
@@ -144,23 +202,34 @@ export default function GoodsPage() {
       ) : (
         <div className="grid">
           {data.map((g) => (
-            <article key={g.id} className="card">
+            <article
+              key={g.id}
+              className="card card-clickable"
+              role="button"
+              tabIndex={0}
+              aria-label={`${g.title} – Details ansehen`}
+              onClick={() => setSelected(g)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSelected(g)
+                }
+              }}
+            >
               {g.imageUrls[0] && <img className="thumb" src={g.imageUrls[0]} alt={g.title} loading="lazy" />}
               <h3>{g.title}</h3>
               <div className="price">{money(g.price, g.currency)}</div>
-              <div className="desc">{g.description}</div>
+              <div className="desc desc-clamp">{g.description}</div>
               <div className="meta">
                 <span className="badge role">{CONDITION_LABELS[g.condition] ?? g.condition}</span>
                 <span>{[g.location, g.authorName].filter(Boolean).join(' · ')}</span>
-              </div>
-              <div style={{ marginTop: '0.7rem' }}>
-                <ContactButton recipientId={g.authorId} listingType="goods" listingId={g.id} label="Anfragen" />
               </div>
             </article>
           ))}
         </div>
       )}
 
+      {selected && <GoodsDetail item={selected} onClose={() => setSelected(null)} />}
       {showForm && <SubmitGoodsModal onClose={() => setShowForm(false)} onCreated={reload} />}
     </>
   )

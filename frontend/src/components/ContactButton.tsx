@@ -9,11 +9,13 @@ export default function ContactButton({
   listingType,
   listingId,
   label = 'Nachricht senden',
+  className = 'btn small secondary',
 }: {
   recipientId: string
   listingType: 'goods' | 'service'
   listingId: string
   label?: string
+  className?: string
 }) {
   const { me } = useAuth()
   const navigate = useNavigate()
@@ -45,7 +47,7 @@ export default function ContactButton({
 
   return (
     <>
-      <button className="btn small secondary" onClick={() => setOpen(true)}>{label}</button>
+      <button className={className} onClick={() => setOpen(true)}>{label}</button>
       {open && (
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
