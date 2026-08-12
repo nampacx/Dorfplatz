@@ -179,8 +179,10 @@ a { color: var(--blue); text-decoration: none; }
 .topbar {
   display: flex; align-items: center; gap: var(--sp-3);
   min-height: var(--header-h);
-  padding: var(--sp-2) var(--sp-4);
-  padding-top: calc(var(--sp-2) + env(safe-area-inset-top));
+  /* No vertical padding: the account link already carries a 44px target, and
+     padding on top of it pushed the bar to 63px. min-height sets the floor. */
+  padding: 0 var(--sp-4);
+  padding-top: env(safe-area-inset-top);
   padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
   padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
   background: var(--enamel);
@@ -346,7 +348,9 @@ a { color: var(--blue); text-decoration: none; }
   font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--ink-soft);
 }
-.card .price {
+/* One rule, not one per container: it was scoped to .card and .modal, and the
+   detail price silently lost its styling when .modal stopped existing. */
+.price {
   font-family: var(--font-mono); font-weight: 700; font-size: var(--fs-xl);
   color: var(--ink); letter-spacing: -0.02em;
 }
@@ -355,8 +359,35 @@ a { color: var(--blue); text-decoration: none; }
   width: 100%; aspect-ratio: 4/3; object-fit: cover;
   border-radius: 2px; margin-bottom: 0.7rem; background: var(--blue-tint);
 }
-.thumbrow { display: flex; gap: var(--sp-1); overflow-x: auto; }
-.thumbrow img { height: 64px; width: 64px; object-fit: cover; border-radius: 2px; }
+/* Listing gallery. The strip snaps horizontally — swipe on a phone, thumbnails
+   drive it on a desktop. One strip for both, so "which image is showing" has a
+   single answer. */
+.gallery {
+  display: flex; overflow-x: auto;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  border-radius: 2px; background: var(--blue-tint);
+  scrollbar-width: none;
+}
+.gallery::-webkit-scrollbar { display: none; }
+.gallery img {
+  flex: 0 0 100%; width: 100%; aspect-ratio: 4/3; object-fit: cover;
+  scroll-snap-align: center;
+}
+.gallery-dots { display: flex; justify-content: center; gap: var(--sp-2); margin: var(--sp-2) 0; }
+.gallery-dots button {
+  position: relative; width: 8px; height: 8px; padding: 0;
+  border: none; border-radius: 999px; background: var(--line-strong);
+  cursor: pointer; touch-action: manipulation;
+}
+.gallery-dots button.active { background: var(--signal); }
+/* Full-size hit area without a full-size dot. */
+.gallery-dots button::before {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  width: var(--tap); height: var(--tap); transform: translate(-50%, -50%);
+}
+/* Thumbnails are the desktop control; the dots serve a phone. */
+.thumbrow { display: none; }
 
 /* ---- Badges ------------------------------------------------------------
    Blue = sought / official. Yellow = offered / awaiting action.
@@ -463,8 +494,55 @@ th {
   border-bottom: 2px solid var(--line-strong);
 }
 
-/* ---- Chat -------------------------------------------------------------- */
+/* ---- Chat --------------------------------------------------------------
+   On a phone this is one pane at a time: the conversation list IS the page,
+   and opening a thread swaps to it. Stacking both (the old behaviour) meant
+   scrolling past every conversation to reach the composer.
+   ----------------------------------------------------------------------- */
 .chat { display: grid; grid-template-columns: 1fr; gap: var(--sp-4); }
+.chat .thread { display: none; }
+
+.chat.thread-open {
+  display: flex; flex-direction: column;
+  /* Height comes from the flex chain below, not arithmetic. Subtracting
+     --header-h here was wrong by 11px the moment someone signed in: the
+     account link's 44px target makes the real header taller than the token. */
+  flex: 1; min-height: 0;
+}
+.chat.thread-open .convo-list { display: none; }
+/* min-height:0 is what lets .messages scroll instead of the column growing. */
+.chat.thread-open .thread { display: flex; flex: 1; min-height: 0; }
+.chat.thread-open .messages { min-height: 0; }
+.chat.thread-open .composer {
+  flex-shrink: 0;
+  padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+}
+
+.thread-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 0 var(--sp-2); flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+}
+.thread-back {
+  display: inline-flex; align-items: center;
+  min-height: var(--control-h); padding: 0 var(--sp-2);
+  border: none; background: transparent; color: var(--blue);
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.thread-name { font-weight: 700; font-size: var(--fs-base); }
+
+/* The tab bar would otherwise sit under the text input, and its 56px are
+   worth more to the composer while a thread is open. */
+body[data-chat-thread='open'] .tabbar { display: none; }
+/* Pin the app to exactly one screen and let flex hand the leftover space to
+   the thread, so the composer sits on the bottom edge whatever the header
+   measures and the page itself never scrolls. */
+body[data-chat-thread='open'] .app { height: 100dvh; overflow: hidden; }
+body[data-chat-thread='open'] .container {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+}
 .convo-list {
   border: 1px solid var(--line); border-radius: var(--radius);
   overflow-y: auto; background: var(--card);
@@ -489,7 +567,8 @@ th {
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--card);
 }
 .messages {
-  flex: 1; min-height: 50vh; overflow-y: auto; padding: 1.1rem;
+  flex: 1; min-height: 50vh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 1.1rem;
   display: flex; flex-direction: column; gap: 0.55rem;
 }
 .bubble {
@@ -508,15 +587,30 @@ th {
 }
 
 /* ---- Consent banner ---------------------------------------------------- */
+/* Sits on top of the tab bar rather than over it, and stacks as a column so it
+   costs ~2 lines instead of the ~5 the old copy reflowed to at 375px. The
+   max-height is a backstop: a fixed bar must never be able to eat the screen. */
 .consent {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-consent);
+  position: fixed; left: 0; right: 0; z-index: var(--z-consent);
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   background: var(--enamel-deep); color: #dbe4f7;
   border-top: 3px solid var(--signal);
-  padding: var(--sp-4) var(--sp-5); display: flex; gap: 1.25rem;
-  align-items: center; flex-wrap: wrap; justify-content: center;
+  padding: var(--sp-3) var(--sp-4);
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  align-items: stretch;
+  max-height: 45dvh; overflow-y: auto;
 }
 .consent p { margin: 0; font-size: var(--fs-sm); max-width: 640px; }
 .consent a { color: var(--signal); }
+/* Full width, because a lone action on a phone should not need aiming. */
+.consent .btn { width: 100%; }
+
+/* While a chat thread is open the tab bar is gone, so reclaim its offset. */
+body[data-chat-thread='open'] .consent {
+  bottom: 0; padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+}
 
 /* ---- Sign-in ----------------------------------------------------------- */
 .gate { text-align: center; padding: var(--sp-7) var(--sp-4); }
@@ -583,45 +677,11 @@ th {
   border-top: 2px dashed var(--line-strong);
 }
 
-/* ---- Modal (legacy shell, still used by nothing after the sheet move) --- */
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(7, 24, 65, 0.6);
-  display: flex; align-items: center; justify-content: center;
-  z-index: var(--z-backdrop); padding: var(--sp-4);
-}
-.modal {
-  position: relative;
-  background: var(--card); border-radius: var(--radius); padding: 1.6rem;
-  max-width: 540px; width: 100%; box-shadow: var(--shadow-lift);
-  border-top: 4px solid var(--signal);
-  max-height: 90vh;
-  max-height: 90dvh;
-  overflow-y: auto;
-}
-.modal.wide { max-width: 660px; }
-.modal h2 { margin-top: 0; font-weight: 800; letter-spacing: -0.01em; }
-
-.modal-close {
-  position: absolute; top: 0.6rem; right: 0.7rem;
-  border: none; background: transparent; cursor: pointer;
-  font-size: 1.6rem; line-height: 1; padding: 0.2rem 0.45rem;
-  color: var(--ink-soft); border-radius: var(--radius);
-  touch-action: manipulation;
-}
-
 /* ---- Listing detail view ----------------------------------------------- */
-.detail-hero {
-  width: 100%; max-height: 340px; object-fit: cover;
-  border-radius: 2px; background: var(--blue-tint); margin-bottom: var(--sp-2);
-}
-.thumbrow img { cursor: pointer; border: 2px solid transparent; }
-.thumbrow img.active { border-color: var(--signal); }
-
 .detail-title {
   margin: 0.8rem 0 0.3rem; font-size: var(--fs-xl); font-weight: 800;
   letter-spacing: -0.02em; line-height: var(--lh-tight);
 }
-.modal .price { font-family: var(--font-mono); font-weight: 700; font-size: var(--fs-xl); color: var(--ink); }
 
 .detail-facts {
   display: grid; grid-template-columns: auto 1fr; gap: 0.3rem var(--sp-4);
@@ -660,6 +720,13 @@ th {
   background: var(--red); color: #fff; font-size: var(--fs-base); font-weight: 700;
   touch-action: manipulation;
 }
+/* A 22px dot is the right visual weight on a 72px thumbnail but the wrong
+   thing to aim at. This gives it a full 44px target without growing the dot;
+   see also .gallery-dots button::before, which does the same job. */
+.image-remove::before {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  width: var(--tap); height: var(--tap); transform: translate(-50%, -50%);
+}
 
 /* Replying expands here, inside the detail sheet, rather than stacking a
    second overlay on top of it. */
@@ -684,6 +751,13 @@ th {
   .container { padding: var(--sp-6) var(--sp-5) 5rem; }
   .grid { gap: 1.25rem; }
   .panel { padding: var(--sp-5); }
+
+  /* Enough width for copy and button to share a line. */
+  .consent {
+    flex-direction: row; align-items: center; justify-content: center;
+    gap: 1.25rem; padding: var(--sp-4) var(--sp-5);
+  }
+  .consent .btn { width: auto; }
 }
 
 /* =========================================================================
@@ -701,26 +775,38 @@ th {
 
   .topbar { gap: var(--sp-5); padding: 0.7rem var(--sp-5); }
   .brand { font-size: var(--fs-lg); }
-  .topbar .wide-only { display: inline-flex; }
-  .topbar .nav.wide-only { display: flex; }
   .account-link { max-width: 22ch; }
-  /* Navigation returns to the header, so the bottom bar and its clearance go. */
-  .tabbar { display: none; }
-  .container { padding-bottom: 5rem; }
 
+  /* Both panes side by side again. */
   .chat { grid-template-columns: 270px 1fr; height: 70vh; }
+  .chat .thread { display: flex; }
+  .thread-head { display: none; }
   .messages { min-height: 0; }
   .bubble { max-width: 70%; }
 
   /* Back to a centred dialog with room around it. */
   .sheet {
-    inset: auto; margin: auto;
+    /* inset stays 0 so margin:auto has edges to centre between; inset:auto
+       drops the dialog to the top-left corner. */
+    inset: 0; margin: auto;
     width: 100%; max-width: 540px;
     height: auto; max-height: 90dvh;
     border-radius: var(--radius);
     box-shadow: var(--shadow-lift);
   }
   .sheet.wide { max-width: 660px; }
+
+  /* Sized like the hero it replaces; thumbnails take over from the dots. */
+  .gallery { height: 340px; }
+  .gallery img { aspect-ratio: auto; height: 340px; }
+  .gallery-dots { display: none; }
+  .thumbrow { display: flex; gap: var(--sp-1); overflow-x: auto; margin: var(--sp-2) 0; }
+  .thumbrow button {
+    padding: 0; border: 2px solid transparent; border-radius: 2px;
+    background: none; cursor: pointer; line-height: 0;
+  }
+  .thumbrow button.active { border-color: var(--signal); }
+  .thumbrow img { height: 64px; width: 64px; object-fit: cover; display: block; }
   .sheet-content { padding: 1.6rem; }
   .sheet .detail-actions {
     margin: var(--sp-5) -1.6rem -1.6rem;
@@ -729,10 +815,33 @@ th {
 }
 
 /* =========================================================================
+   >= 1100px — navigation returns to the header.
+
+   Deliberately not 900 with the rest of the desktop switch: measured, the
+   six-link admin header needs 1058px to sit on one row (brand 201 + nav 600 +
+   user box 161 + 96 of gaps and padding). At 900 the nav wrapped to two rows
+   and the header grew to 100px — the exact failure the tab bar exists to fix.
+   Below this the bottom tab bar stays, which is fine next to a two-pane chat.
+   ========================================================================= */
+@media (min-width: 1100px) {
+  .topbar .wide-only { display: inline-flex; }
+  .topbar .nav.wide-only { display: flex; }
+  .tabbar { display: none; }
+  .container { padding-bottom: 5rem; }
+  .consent { bottom: 0; }
+}
+
+/* =========================================================================
    >= 1200px — comfort only.
    ========================================================================= */
 @media (min-width: 1200px) {
   .container { padding: var(--sp-6) var(--sp-6) 5rem; }
+}
+
+/* A touch screen keeps full-size targets however wide it is: the 36px above
+   is a concession to a precise pointer, not to a large screen. */
+@media (pointer: coarse) {
+  :root { --control-h: 44px; }
 }
 
 /* =========================================================================
