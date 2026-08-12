@@ -4,6 +4,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { useChatConnection } from '../../chat/ChatConnection'
 import { LoginGate, Loading } from '../../components/Common'
+import useIsWide from '../../hooks/useIsWide'
 import type { Conversation, Message } from '../../types'
 
 export default function ChatPage() {
@@ -19,6 +20,7 @@ function fmtTime(iso: string) {
 
 function Chat() {
   const [params, setParams] = useSearchParams()
+  const isWide = useIsWide()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(params.get('c'))
   const [messages, setMessages] = useState<Message[]>([])
@@ -26,21 +28,45 @@ function Chat() {
   const endRef = useRef<HTMLDivElement>(null)
   const { subscribe, markConversationRead, setActiveConversation } = useChatConnection()
 
+  /** On a phone the thread is a screen of its own, not a second pane. */
+  const threadOnPhone = !isWide && !!activeId
+
   // Load conversation list.
   async function loadConversations() {
     const list = await api.get<Conversation[]>('/conversations')
     setConversations(list)
-    if (!activeId && list.length) setActiveId(list[0].id)
+    // Opening the first thread automatically is right for the two-pane desktop
+    // layout and wrong on a phone, where it would skip the list entirely and
+    // drop the member into someone's conversation. A /chat?c=… deep link still
+    // lands straight in the thread, because activeId is seeded from the query.
+    if (isWide && !activeId && list.length) setActiveId(list[0].id)
   }
   useEffect(() => {
     void loadConversations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Back gesture: the URL is what changes, so follow it back to the list.
+  const paramC = params.get('c')
+  useEffect(() => {
+    if (!isWide) setActiveId(paramC)
+  }, [paramC, isWide])
+
+  // Hides the tab bar and reclaims its space; a nav bar sitting under a text
+  // input is the standard mistake, and the composer needs those 56px.
+  useEffect(() => {
+    document.body.dataset.chatThread = threadOnPhone ? 'open' : ''
+    return () => {
+      document.body.dataset.chatThread = ''
+    }
+  }, [threadOnPhone])
+
   // Load messages for the active conversation, and clear its unread state.
   useEffect(() => {
     if (!activeId) return
-    setParams({ c: activeId }, { replace: true })
+    // Push rather than replace on a phone: the thread is its own screen there,
+    // so the hardware Back button should return to the list, not leave chat.
+    setParams({ c: activeId }, { replace: isWide })
     setActiveConversation(activeId)
     void api.get<Message[]>(`/conversations/${activeId}/messages`).then(setMessages)
     void markConversationRead(activeId).then(loadConversations)
@@ -80,11 +106,13 @@ function Chat() {
 
   return (
     <>
-      <div className="page-head"><h1>Nachrichten</h1></div>
+      {/* The thread wants the whole screen on a phone; the page title would
+          cost a fifth of it to say something the thread header already says. */}
+      {!threadOnPhone && <div className="page-head"><h1>Nachrichten</h1></div>}
       {conversations.length === 0 ? (
         <div className="empty">Noch keine Unterhaltungen. Schreibe jemandem über ein Angebot oder eine Anzeige.</div>
       ) : (
-        <div className="chat">
+        <div className={threadOnPhone ? 'chat thread-open' : 'chat'}>
           <div className="convo-list">
             {conversations.map((c) => (
               <div
@@ -101,8 +129,22 @@ function Chat() {
             ))}
           </div>
           <div className="thread">
+            {threadOnPhone && (
+              <div className="thread-head">
+                {/* Back rather than clearing state directly, so this and the
+                    hardware Back gesture are the same single code path. */}
+                <button
+                  className="thread-back"
+                  onClick={() => window.history.back()}
+                  aria-label="Zurück zur Übersicht"
+                >
+                  ‹ Zurück
+                </button>
+                <span className="thread-name">{active?.otherUserName}</span>
+              </div>
+            )}
             <div className="messages">
-              {active && <div className="time" style={{ textAlign: 'center', color: 'var(--ink-soft)' }}>Unterhaltung mit {active.otherUserName}</div>}
+              {active && !threadOnPhone && <div className="time" style={{ textAlign: 'center', color: 'var(--ink-soft)' }}>Unterhaltung mit {active.otherUserName}</div>}
               {messages.map((m) => (
                 <div key={m.id} className={`bubble ${m.isMine ? 'mine' : 'theirs'}`}>
                   {m.body}

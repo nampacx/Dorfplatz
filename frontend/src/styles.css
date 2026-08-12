@@ -179,8 +179,10 @@ a { color: var(--blue); text-decoration: none; }
 .topbar {
   display: flex; align-items: center; gap: var(--sp-3);
   min-height: var(--header-h);
-  padding: var(--sp-2) var(--sp-4);
-  padding-top: calc(var(--sp-2) + env(safe-area-inset-top));
+  /* No vertical padding: the account link already carries a 44px target, and
+     padding on top of it pushed the bar to 63px. min-height sets the floor. */
+  padding: 0 var(--sp-4);
+  padding-top: env(safe-area-inset-top);
   padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
   padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
   background: var(--enamel);
@@ -463,8 +465,55 @@ th {
   border-bottom: 2px solid var(--line-strong);
 }
 
-/* ---- Chat -------------------------------------------------------------- */
+/* ---- Chat --------------------------------------------------------------
+   On a phone this is one pane at a time: the conversation list IS the page,
+   and opening a thread swaps to it. Stacking both (the old behaviour) meant
+   scrolling past every conversation to reach the composer.
+   ----------------------------------------------------------------------- */
 .chat { display: grid; grid-template-columns: 1fr; gap: var(--sp-4); }
+.chat .thread { display: none; }
+
+.chat.thread-open {
+  display: flex; flex-direction: column;
+  /* Height comes from the flex chain below, not arithmetic. Subtracting
+     --header-h here was wrong by 11px the moment someone signed in: the
+     account link's 44px target makes the real header taller than the token. */
+  flex: 1; min-height: 0;
+}
+.chat.thread-open .convo-list { display: none; }
+/* min-height:0 is what lets .messages scroll instead of the column growing. */
+.chat.thread-open .thread { display: flex; flex: 1; min-height: 0; }
+.chat.thread-open .messages { min-height: 0; }
+.chat.thread-open .composer {
+  flex-shrink: 0;
+  padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+}
+
+.thread-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 0 var(--sp-2); flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+}
+.thread-back {
+  display: inline-flex; align-items: center;
+  min-height: var(--control-h); padding: 0 var(--sp-2);
+  border: none; background: transparent; color: var(--blue);
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.thread-name { font-weight: 700; font-size: var(--fs-base); }
+
+/* The tab bar would otherwise sit under the text input, and its 56px are
+   worth more to the composer while a thread is open. */
+body[data-chat-thread='open'] .tabbar { display: none; }
+/* Pin the app to exactly one screen and let flex hand the leftover space to
+   the thread, so the composer sits on the bottom edge whatever the header
+   measures and the page itself never scrolls. */
+body[data-chat-thread='open'] .app { height: 100dvh; overflow: hidden; }
+body[data-chat-thread='open'] .container {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+}
 .convo-list {
   border: 1px solid var(--line); border-radius: var(--radius);
   overflow-y: auto; background: var(--card);
@@ -489,7 +538,8 @@ th {
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--card);
 }
 .messages {
-  flex: 1; min-height: 50vh; overflow-y: auto; padding: 1.1rem;
+  flex: 1; min-height: 50vh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 1.1rem;
   display: flex; flex-direction: column; gap: 0.55rem;
 }
 .bubble {
@@ -708,7 +758,10 @@ th {
   .tabbar { display: none; }
   .container { padding-bottom: 5rem; }
 
+  /* Both panes side by side again. */
   .chat { grid-template-columns: 270px 1fr; height: 70vh; }
+  .chat .thread { display: flex; }
+  .thread-head { display: none; }
   .messages { min-height: 0; }
   .bubble { max-width: 70%; }
 
