@@ -7,7 +7,7 @@
     <script>
       (function () {
         const json = (d) => new Response(JSON.stringify(d), { status: 200, headers: { 'content-type': 'application/json' } })
-        const me = { id: 'u1', email: 'test@example.com', displayName: 'Testnutzer', roles: ['user'], hasConsented: false }
+        const me = { id: 'u1', email: 'test@example.com', displayName: 'Testnutzer', roles: ['user','moderator','admin'], hasConsented: false }
         const convos = [
           { id: 'c1', listingType: 'goods', listingId: 'g1', otherUserId: 'u2', otherUserName: 'Bernd Schmidt', lastMessageAt: '2026-08-11T18:00:00Z', unreadCount: 2 },
           { id: 'c2', listingType: null, listingId: null, otherUserId: 'u3', otherUserName: 'Claudia Weber', lastMessageAt: '2026-08-10T09:30:00Z', unreadCount: 0 }
@@ -30,7 +30,7 @@
         const events = [{ id: 'e1', title: 'Sommerfest am Dorfplatz', description: 'Musik, Kuchen und Tombola. '.repeat(10), eventDate: '2026-08-20T16:00:00Z', location: 'Dorfplatz', category: 'Vereine', status: 'Published', rejectionReason: null, authorName: 'Anna Muster', createdAt: '2026-08-01T10:00:00Z', canEdit: false }]
         window.fetch = async (u) => {
           const s = String(u)
-          if (s.includes('/.auth/me')) return json({ clientPrincipal: { userId: 'u1', userRoles: ['anonymous', 'authenticated', 'user'], identityProvider: 'aad', userDetails: 'test@example.com' } })
+          if (s.includes('/.auth/me')) return json({ clientPrincipal: { userId: 'u1', userRoles: ['anonymous','authenticated','user','moderator','admin'], identityProvider: 'aad', userDetails: 'test@example.com' } })
           if (s.includes('/api/account/me')) return json(me)
           if (s.includes('/api/conversations/unread-count')) return json({ total: 2 })
           if (/\/api\/conversations\/[^/]+\/messages/.test(s)) return json(msgs)

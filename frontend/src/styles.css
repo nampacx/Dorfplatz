@@ -348,7 +348,9 @@ a { color: var(--blue); text-decoration: none; }
   font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--ink-soft);
 }
-.card .price {
+/* One rule, not one per container: it was scoped to .card and .modal, and the
+   detail price silently lost its styling when .modal stopped existing. */
+.price {
   font-family: var(--font-mono); font-weight: 700; font-size: var(--fs-xl);
   color: var(--ink); letter-spacing: -0.02em;
 }
@@ -675,38 +677,11 @@ body[data-chat-thread='open'] .consent {
   border-top: 2px dashed var(--line-strong);
 }
 
-/* ---- Modal (legacy shell, still used by nothing after the sheet move) --- */
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(7, 24, 65, 0.6);
-  display: flex; align-items: center; justify-content: center;
-  z-index: var(--z-backdrop); padding: var(--sp-4);
-}
-.modal {
-  position: relative;
-  background: var(--card); border-radius: var(--radius); padding: 1.6rem;
-  max-width: 540px; width: 100%; box-shadow: var(--shadow-lift);
-  border-top: 4px solid var(--signal);
-  max-height: 90vh;
-  max-height: 90dvh;
-  overflow-y: auto;
-}
-.modal.wide { max-width: 660px; }
-.modal h2 { margin-top: 0; font-weight: 800; letter-spacing: -0.01em; }
-
-.modal-close {
-  position: absolute; top: 0.6rem; right: 0.7rem;
-  border: none; background: transparent; cursor: pointer;
-  font-size: 1.6rem; line-height: 1; padding: 0.2rem 0.45rem;
-  color: var(--ink-soft); border-radius: var(--radius);
-  touch-action: manipulation;
-}
-
 /* ---- Listing detail view ----------------------------------------------- */
 .detail-title {
   margin: 0.8rem 0 0.3rem; font-size: var(--fs-xl); font-weight: 800;
   letter-spacing: -0.02em; line-height: var(--lh-tight);
 }
-.modal .price { font-family: var(--font-mono); font-weight: 700; font-size: var(--fs-xl); color: var(--ink); }
 
 .detail-facts {
   display: grid; grid-template-columns: auto 1fr; gap: 0.3rem var(--sp-4);
@@ -744,6 +719,13 @@ body[data-chat-thread='open'] .consent {
   border: none; border-radius: 50%; cursor: pointer;
   background: var(--red); color: #fff; font-size: var(--fs-base); font-weight: 700;
   touch-action: manipulation;
+}
+/* A 22px dot is the right visual weight on a 72px thumbnail but the wrong
+   thing to aim at. This gives it a full 44px target without growing the dot;
+   see also .gallery-dots button::before, which does the same job. */
+.image-remove::before {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  width: var(--tap); height: var(--tap); transform: translate(-50%, -50%);
 }
 
 /* Replying expands here, inside the detail sheet, rather than stacking a
@@ -793,13 +775,7 @@ body[data-chat-thread='open'] .consent {
 
   .topbar { gap: var(--sp-5); padding: 0.7rem var(--sp-5); }
   .brand { font-size: var(--fs-lg); }
-  .topbar .wide-only { display: inline-flex; }
-  .topbar .nav.wide-only { display: flex; }
   .account-link { max-width: 22ch; }
-  /* Navigation returns to the header, so the bottom bar and its clearance go. */
-  .tabbar { display: none; }
-  .container { padding-bottom: 5rem; }
-  .consent { bottom: 0; }
 
   /* Both panes side by side again. */
   .chat { grid-template-columns: 270px 1fr; height: 70vh; }
@@ -839,10 +815,33 @@ body[data-chat-thread='open'] .consent {
 }
 
 /* =========================================================================
+   >= 1100px — navigation returns to the header.
+
+   Deliberately not 900 with the rest of the desktop switch: measured, the
+   six-link admin header needs 1058px to sit on one row (brand 201 + nav 600 +
+   user box 161 + 96 of gaps and padding). At 900 the nav wrapped to two rows
+   and the header grew to 100px — the exact failure the tab bar exists to fix.
+   Below this the bottom tab bar stays, which is fine next to a two-pane chat.
+   ========================================================================= */
+@media (min-width: 1100px) {
+  .topbar .wide-only { display: inline-flex; }
+  .topbar .nav.wide-only { display: flex; }
+  .tabbar { display: none; }
+  .container { padding-bottom: 5rem; }
+  .consent { bottom: 0; }
+}
+
+/* =========================================================================
    >= 1200px — comfort only.
    ========================================================================= */
 @media (min-width: 1200px) {
   .container { padding: var(--sp-6) var(--sp-6) 5rem; }
+}
+
+/* A touch screen keeps full-size targets however wide it is: the 36px above
+   is a concession to a precise pointer, not to a large screen. */
+@media (pointer: coarse) {
+  :root { --control-h: 44px; }
 }
 
 /* =========================================================================

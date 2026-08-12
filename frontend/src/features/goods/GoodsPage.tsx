@@ -316,7 +316,17 @@ export default function GoodsPage() {
                 }
               }}
             >
-              {g.images[0] && <img className="thumb" src={g.images[0].url} alt={g.title} loading="lazy" />}
+              {g.images[0] && (
+                <img
+                  className="thumb"
+                  src={g.images[0].url}
+                  alt={g.title}
+                  loading="lazy"
+                  decoding="async"
+                  width={800}
+                  height={600}
+                />
+              )}
               <h3>{g.title}</h3>
               <div className="price">{money(g.price, g.currency)}</div>
               <div className="desc desc-clamp">{g.description}</div>
