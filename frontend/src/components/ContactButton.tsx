@@ -56,24 +56,29 @@ export default function ContactButton({
     }
   }
 
-  return (
-    <>
-      <button className={className} onClick={() => setOpen(true)}>{label}</button>
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ marginTop: 0 }}>Nachricht schreiben</h2>
-            {error && <div className="notice error">{error}</div>}
-            <div className="field">
-              <textarea placeholder="Deine Nachricht…" value={text} onChange={(e) => setText(e.target.value)} />
-            </div>
-            <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <button className="btn secondary" onClick={() => setOpen(false)}>Abbrechen</button>
-              <button className="btn" disabled={busy || !text.trim()} onClick={send}>Senden</button>
-            </div>
-          </div>
+  // Expands in place rather than opening a second overlay on top of the
+  // detail sheet. There is room on a full-screen sheet, the listing stays
+  // visible while you write about it, and it removes a third stacked layer.
+  if (open) {
+    return (
+      <div className="contact-form">
+        {error && <div className="notice error">{error}</div>}
+        <div className="field">
+          <label>Nachricht schreiben</label>
+          <textarea
+            autoFocus
+            placeholder="Deine Nachricht…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
         </div>
-      )}
-    </>
-  )
+        <div className="row">
+          <button className="btn secondary" onClick={() => setOpen(false)}>Abbrechen</button>
+          <button className="btn" disabled={busy || !text.trim()} onClick={send}>Senden</button>
+        </div>
+      </div>
+    )
+  }
+
+  return <button className={className} onClick={() => setOpen(true)}>{label}</button>
 }

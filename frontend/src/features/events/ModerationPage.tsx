@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { EmptyState, ErrorNotice, Loading, RequireRole, useAsync } from '../../components/Common'
+import Sheet from '../../components/Sheet'
 import EventDetail from './EventDetail'
 import type { EventPost } from '../../types'
 
@@ -100,8 +101,8 @@ function ModerationQueue() {
       )}
 
       {rejecting && (
-        <div className="modal-backdrop" onClick={() => setRejecting(null)}>
-          <div className="modal" onClick={(ev) => ev.stopPropagation()}>
+        <Sheet title="Einreichung ablehnen" onClose={() => setRejecting(null)}>
+          <div>
             <h2 style={{ marginTop: 0 }}>Einreichung ablehnen</h2>
             <p style={{ color: 'var(--ink-soft)' }}>Der Grund wird der einreichenden Person angezeigt.</p>
             <div className="field">
@@ -113,7 +114,7 @@ function ModerationQueue() {
               <button className="btn danger" disabled={!reason.trim()} onClick={confirmReject}>Ablehnen</button>
             </div>
           </div>
-        </div>
+        </Sheet>
       )}
     </>
   )

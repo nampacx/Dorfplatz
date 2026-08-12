@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
+import Sheet from '../../components/Sheet'
 import ContactButton from '../../components/ContactButton'
 import DetailModal from '../../components/DetailModal'
 import type { GoodsImage, GoodsPost, UploadSlot } from '../../types'
@@ -215,8 +216,8 @@ function GoodsFormModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+    <Sheet title={existing ? 'Anzeige bearbeiten' : 'Artikel anbieten'} onClose={onClose}>
+      <form onSubmit={submit}>
         <h2 style={{ marginTop: 0 }}>{existing ? 'Anzeige bearbeiten' : 'Artikel anbieten'}</h2>
         {error && <ErrorNotice message={error} />}
         <div className="field">
@@ -289,7 +290,7 @@ function GoodsFormModal({
           </button>
         </div>
       </form>
-    </div>
+    </Sheet>
   )
 }
 

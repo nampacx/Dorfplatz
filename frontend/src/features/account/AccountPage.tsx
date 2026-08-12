@@ -3,9 +3,29 @@ import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { ErrorNotice, LoginGate, Loading, useAsync } from '../../components/Common'
+import Sheet from '../../components/Sheet'
 import EventDetail, { STATUS_LABELS } from '../events/EventDetail'
 import EventFormModal from '../events/EventFormModal'
 import type { EventPost } from '../../types'
+
+/**
+ * The destinations the bottom tab bar cannot hold. Moderation and Admin are
+ * rare and role-gated, and signing out is deliberate — all three belong with
+ * the account controls rather than taking a permanent slot in navigation.
+ */
+function ManagementLinks() {
+  const { isModerator, isAdmin } = useAuth()
+  return (
+    <div className="panel" style={{ marginTop: '2rem' }}>
+      <h2 style={{ marginTop: 0 }}>Verwaltung</h2>
+      <div className="stack-actions">
+        {isModerator && <Link className="btn secondary" to="/moderation">Events moderieren</Link>}
+        {isAdmin && <Link className="btn secondary" to="/admin">Mitglieder verwalten</Link>}
+        <a className="btn secondary" href="/.auth/logout?post_logout_redirect_uri=/">Abmelden</a>
+      </div>
+    </div>
+  )
+}
 
 function MyEvents() {
   const { data, loading, reload } = useAsync(() => api.get<EventPost[]>('/events/mine'), [])
@@ -171,11 +191,13 @@ export default function AccountPage() {
 
       <ProfilePanel />
 
-      <h2 style={{ fontFamily: 'var(--serif)' }}>Meine Events</h2>
+      <h2>Meine Events</h2>
       <MyEvents />
 
+      <ManagementLinks />
+
       <div className="panel" style={{ marginTop: '2rem' }}>
-        <h2 style={{ marginTop: 0, fontFamily: 'var(--serif)' }}>Datenschutz (DSGVO)</h2>
+        <h2 style={{ marginTop: 0 }}>Datenschutz (DSGVO)</h2>
         <p style={{ color: 'var(--ink-soft)' }}>
           Du kannst jederzeit alle über dich gespeicherten Daten exportieren oder dein Konto löschen.
           Details in der <Link to="/privacy">Datenschutzerklärung</Link>.
@@ -187,8 +209,8 @@ export default function AccountPage() {
       </div>
 
       {confirming && (
-        <div className="modal-backdrop" onClick={() => setConfirming(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <Sheet title="Konto wirklich löschen?" onClose={() => setConfirming(false)}>
+          <div>
             <h2 style={{ marginTop: 0 }}>Konto wirklich löschen?</h2>
             <p>
               Deine persönlichen Daten werden anonymisiert, deine Anzeigen entfernt und deine
@@ -199,7 +221,7 @@ export default function AccountPage() {
               <button className="btn danger" disabled={busy} onClick={deleteAccount}>Endgültig löschen</button>
             </div>
           </div>
-        </div>
+        </Sheet>
       )}
     </>
   )

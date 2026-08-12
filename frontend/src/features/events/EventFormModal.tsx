@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { ErrorNotice } from '../../components/Common'
+import Sheet from '../../components/Sheet'
 import { EVENT_CATEGORIES, type EventCategory, type EventPost } from '../../types'
 
 /** Date input wants yyyy-MM-dd; the API returns an ISO timestamp. */
@@ -55,8 +56,8 @@ export default function EventFormModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+    <Sheet title={existing ? 'Event bearbeiten' : 'Event einreichen'} onClose={onClose}>
+      <form onSubmit={submit}>
         <h2 style={{ marginTop: 0 }}>
           {existing ? 'Event bearbeiten' : 'Event einreichen'}
         </h2>
@@ -105,6 +106,6 @@ export default function EventFormModal({
           </button>
         </div>
       </form>
-    </div>
+    </Sheet>
   )
 }

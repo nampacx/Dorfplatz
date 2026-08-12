@@ -7,6 +7,19 @@
    Typefaces are system stacks on purpose: the app ships a strict CSP
    (default-src 'self') and embedding a webfont CDN is a GDPR problem for a
    German community site. Roles are separated by weight, case and tracking.
+
+   MOBILE FIRST. The base rules are the phone layout; min-width queries add
+   back desktop affordances. Breakpoints (media queries cannot read custom
+   properties, so these are literals — keep them in sync with this list):
+
+     600px  two-column card grid, page heads go side-by-side
+     900px  the chrome switch: bottom tab bar -> top nav, chat -> two panes,
+            full-screen sheets -> centred dialogs, denser type and controls
+     1200px wider gutters only
+
+   900 rather than 760 because the top nav needs ~900px to fit six links on
+   one row and the chat split needs ~760 — one threshold serves both. It is
+   deliberately not 768, so iPad portrait gets the (better) mobile shell.
    ========================================================================= */
 
 :root {
@@ -44,6 +57,49 @@
 
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Consolas, 'Liberation Mono', monospace;
+
+  /* Spacing scale. Replaces 29 ad-hoc rem values; rounding to these is the point. */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  /* Type scale. --fs-eyebrow is the mono-caps tier (labels, meta, badges);
+     the floor is 0.75rem/12px — nothing renders smaller than that. */
+  --fs-eyebrow: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.375rem;
+  --fs-2xl: clamp(1.5rem, 5vw, 2.25rem);
+
+  /* 16px is a hard floor on mobile: anything smaller makes iOS Safari zoom
+     the viewport on focus, and it never zooms back out. */
+  --fs-input: 1rem;
+
+  --lh-tight: 1.25;
+  --lh-body: 1.55;
+
+  /* Controls. 44px is the WCAG 2.5.5 target size; relaxed on pointer devices
+     at >=900px, where the cursor is precise and density is worth more. */
+  --control-h: 44px;
+  --tap: 44px;
+  --nav-h: 56px;
+  --header-h: 52px;
+
+  /* One z ladder, so "which thing covers which" is answerable by reading. */
+  --z-header: 20;
+  --z-tabbar: 30;
+  --z-consent: 35;
+  --z-backdrop: 60;
+  --z-sheet: 61;
+
+  /* Tells the UA to render form controls, scrollbars and spinners to match
+     the active theme. Without it, dark mode gets light-mode native chrome. */
+  color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -76,19 +132,24 @@
   }
 }
 
+/* ---- Reset ------------------------------------------------------------- */
 * { box-sizing: border-box; }
+
+html {
+  /* Stops iOS inflating text when the phone is turned to landscape. */
+  -webkit-text-size-adjust: 100%;
+}
 
 body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--ink);
   background: var(--paper);
-  line-height: 1.55;
+  line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
 }
 
 a { color: var(--blue); text-decoration: none; }
-a:hover { text-decoration: underline; }
 
 :focus-visible {
   outline: 3px solid var(--signal);
@@ -96,61 +157,135 @@ a:hover { text-decoration: underline; }
   border-radius: 2px;
 }
 
+/* ---- Utilities --------------------------------------------------------- */
+
 /* Utility face: eyebrows, meta, prices, timestamps. */
 .u-label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--fs-eyebrow);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-soft);
 }
 
 /* ---- Layout ------------------------------------------------------------ */
-.app { min-height: 100vh; display: flex; flex-direction: column; }
+.app {
+  min-height: 100vh;
+  min-height: 100dvh; /* dvh excludes mobile browser chrome; vh does not */
+  display: flex;
+  flex-direction: column;
+}
 
 .topbar {
-  display: flex; align-items: center; gap: 1.5rem;
-  padding: 0.7rem 1.5rem;
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-height: var(--header-h);
+  padding: var(--sp-2) var(--sp-4);
+  padding-top: calc(var(--sp-2) + env(safe-area-inset-top));
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
   background: var(--enamel);
   border-bottom: 3px solid var(--signal);
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: 0; z-index: var(--z-header);
 }
+
+/* Shown only from 900px up: below that these live in the TabBar and on the
+   account page. Declared once here so the markup stays one tree.
+   Scoped to .topbar deliberately — a bare .wide-only would tie on specificity
+   with .nav/.btn and lose to whichever is declared later. */
+.topbar .wide-only { display: none; }
+
+/* A long email must not push the header into a second row. */
+.account-link {
+  max-width: 45vw; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- Bottom tab bar (< 900px) ------------------------------------------
+   Four fixed slots in the thumb zone. The active tab is marked with the same
+   3px yellow rule the header wears along its bottom edge — the signal colour
+   saying "you are here", consistent with .chip.active and .nav a.active.
+   ----------------------------------------------------------------------- */
+.tabbar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-tabbar);
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  background: var(--enamel);
+  border-top: 1px solid var(--enamel-deep);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar a {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  min-height: var(--nav-h); padding: var(--sp-1) 0.2rem;
+  border-top: 3px solid transparent;
+  color: #c3d2f0; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.02em;
+  text-align: center; text-decoration: none;
+  touch-action: manipulation;
+}
+.tabbar a.active { color: #fff; border-top-color: var(--signal); }
+/* Anchored to the tab cell, not to the label. "NACHRICHTEN" fills 82px of a
+   94px slot, so hanging the badge off the end of the text would push it past
+   the screen edge in the last slot. */
+.tab-badge {
+  position: absolute; top: 5px; right: 10px;
+  min-width: 17px; padding: 0 0.28rem;
+  font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+  line-height: 17px; text-align: center; border-radius: 999px;
+  background: var(--signal); color: var(--enamel-deep);
+}
+
+/* Buttons stacked full-width — the shape a phone wants for a group of
+   equal-weight actions. */
+.stack-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+.stack-actions .btn { width: 100%; }
 .brand {
-  display: flex; align-items: center; gap: 0.5rem;
-  font-weight: 800; font-size: 1.05rem; color: #fff;
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-weight: 800; font-size: var(--fs-base); color: #fff;
   text-transform: uppercase; letter-spacing: 0.04em;
 }
 .brand .dot { color: var(--signal); font-size: 0.7rem; line-height: 1; }
 
 .nav { display: flex; gap: 0.15rem; flex-wrap: wrap; }
 .nav a {
-  color: #c3d2f0; padding: 0.4rem 0.75rem; border-radius: var(--radius);
-  font-size: 0.9rem; font-weight: 600;
+  /* inline-flex, not inline: min-height does nothing to an inline box, which
+     is why these links measured 35px however much padding they were given. */
+  display: inline-flex; align-items: center; min-height: var(--control-h);
+  color: #c3d2f0; padding: var(--sp-1) var(--sp-3); border-radius: var(--radius);
+  font-size: var(--fs-sm); font-weight: 600;
 }
-.nav a:hover { background: rgba(255, 255, 255, 0.09); color: #fff; text-decoration: none; }
 .nav a.active { background: var(--signal); color: var(--enamel-deep); }
 
 /* Unread count beside the Nachrichten link. Yellow, like every other
    "needs your attention" signal on the board. */
 .nav-badge {
-  display: inline-block; min-width: 18px; margin-left: 0.4rem; padding: 0 0.32rem;
-  font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+  display: inline-block; min-width: 18px; margin-left: var(--sp-1); padding: 0 0.32rem;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow); font-weight: 700;
   line-height: 18px; text-align: center; border-radius: 999px;
   background: var(--signal); color: var(--enamel-deep);
 }
 .nav a.active .nav-badge { background: var(--enamel-deep); color: var(--signal); }
 
 .topbar .spacer { flex: 1; }
-.userbox { display: flex; align-items: center; gap: 0.7rem; font-size: 0.88rem; }
-.userbox a { color: #c3d2f0; }
-.userbox a:hover { color: #fff; }
+.userbox { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); }
+.userbox a {
+  display: inline-flex; align-items: center; min-height: var(--control-h);
+  color: #c3d2f0;
+}
 
-.container { max-width: 1100px; width: 100%; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+.container {
+  max-width: 1100px; width: 100%; margin: 0 auto;
+  padding: var(--sp-5) var(--sp-4) 5rem;
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
+  /* Clears the fixed tab bar. The consent banner adds its own clearance in
+     its own rule, so the two do not both reserve the same space. */
+  padding-bottom: calc(var(--nav-h) + var(--sp-5) + env(safe-area-inset-bottom));
+}
 
-.page-head { margin-bottom: 1.5rem; }
+.page-head { margin-bottom: var(--sp-5); }
 .page-head h1 {
-  font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 800;
-  letter-spacing: -0.02em; margin: 0 0 0.25rem;
+  font-size: var(--fs-2xl); font-weight: 800;
+  letter-spacing: -0.02em; line-height: var(--lh-tight); margin: 0 0 var(--sp-1);
 }
 .page-head p { color: var(--ink-soft); margin: 0; max-width: 60ch; }
 
@@ -158,7 +293,12 @@ a:hover { text-decoration: underline; }
    Signature: the tear-off strip of a real notice. A perforation line and a
    scalloped bottom edge sit under the card's action zone.
    ----------------------------------------------------------------------- */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 1.25rem; }
+.grid {
+  display: grid;
+  /* min() keeps the 285px floor from overflowing viewports narrower than it. */
+  grid-template-columns: repeat(auto-fill, minmax(min(285px, 100%), 1fr));
+  gap: var(--sp-4);
+}
 
 .card {
   position: relative;
@@ -166,7 +306,7 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--line);
   border-bottom: none;
   border-radius: var(--radius) var(--radius) 0 0;
-  padding: 1.15rem 1.15rem 1.5rem;
+  padding: 1.15rem 1.15rem var(--sp-5);
   box-shadow: var(--shadow);
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
@@ -184,11 +324,9 @@ a:hover { text-decoration: underline; }
   -webkit-mask-repeat: repeat-x;
   mask-repeat: repeat-x;
 }
-.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
 
 /* Listing cards open a detail view. */
-.card-clickable { cursor: pointer; }
-.card-clickable:hover { border-color: var(--line-strong); }
+.card-clickable { cursor: pointer; touch-action: manipulation; }
 .card-clickable:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
 
 /* Keep grid rows even: cards preview the text, the detail view has it all. */
@@ -199,17 +337,17 @@ a:hover { text-decoration: underline; }
   overflow: hidden;
 }
 
-.card h3 { margin: 0.4rem 0 0.4rem; font-size: 1.1rem; font-weight: 700; letter-spacing: -0.01em; }
-.card .desc { color: var(--ink-soft); font-size: 0.93rem; white-space: pre-wrap; }
+.card h3 { margin: var(--sp-1) 0; font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; }
+.card .desc { color: var(--ink-soft); font-size: var(--fs-base); white-space: pre-wrap; }
 .card .meta {
   margin-top: 0.9rem; padding-top: 0.7rem;
   border-top: 1px dashed var(--line-strong);
-  display: flex; justify-content: space-between; gap: 0.5rem; align-items: center;
-  font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase;
+  display: flex; justify-content: space-between; gap: var(--sp-2); align-items: center;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--ink-soft);
 }
 .card .price {
-  font-family: var(--font-mono); font-weight: 700; font-size: 1.3rem;
+  font-family: var(--font-mono); font-weight: 700; font-size: var(--fs-xl);
   color: var(--ink); letter-spacing: -0.02em;
 }
 
@@ -217,7 +355,7 @@ a:hover { text-decoration: underline; }
   width: 100%; aspect-ratio: 4/3; object-fit: cover;
   border-radius: 2px; margin-bottom: 0.7rem; background: var(--blue-tint);
 }
-.thumbrow { display: flex; gap: 0.4rem; overflow-x: auto; }
+.thumbrow { display: flex; gap: var(--sp-1); overflow-x: auto; }
 .thumbrow img { height: 64px; width: 64px; object-fit: cover; border-radius: 2px; }
 
 /* ---- Badges ------------------------------------------------------------
@@ -225,8 +363,8 @@ a:hover { text-decoration: underline; }
    ----------------------------------------------------------------------- */
 .badge {
   display: inline-block; font-family: var(--font-mono);
-  font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.1em; padding: 0.22rem 0.5rem; border-radius: 2px;
+  font-size: var(--fs-eyebrow); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; padding: 0.22rem var(--sp-2); border-radius: 2px;
 }
 .badge.seeking   { background: var(--blue-tint);   color: var(--blue); }
 .badge.offering  { background: var(--signal-tint); color: var(--signal-deep); }
@@ -242,32 +380,35 @@ a:hover { text-decoration: underline; }
    Primary is yellow on navy text: the signal colour marks the one action.
    ----------------------------------------------------------------------- */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1);
+  min-height: var(--control-h);
   border: 1px solid transparent; cursor: pointer; font-family: inherit;
-  font-size: 0.9rem; font-weight: 700; padding: 0.5rem 1rem;
+  font-size: var(--fs-sm); font-weight: 700; padding: var(--sp-2) var(--sp-4);
   border-radius: var(--radius); background: var(--signal); color: var(--enamel-deep);
   transition: filter 0.12s ease, transform 0.12s ease;
+  /* Skips the 300ms double-tap-zoom delay on touch. */
+  touch-action: manipulation;
 }
-.btn:hover { filter: brightness(1.07); text-decoration: none; }
 .btn:active { transform: translateY(1px); }
 .btn.secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
-.btn.secondary:hover { background: var(--blue-tint); filter: none; }
-.btn.ghost { background: transparent; color: var(--blue); padding: 0.3rem 0.5rem; }
+.btn.ghost { background: transparent; color: var(--blue); padding: var(--sp-1) var(--sp-2); }
 .btn.danger { background: var(--red); color: #fff; }
-.btn.small { font-size: 0.8rem; padding: 0.35rem 0.7rem; }
+/* "small" is a desktop density affordance: on touch it keeps the full target
+   height and only the type shrinks. */
+.btn.small { font-size: var(--fs-eyebrow); padding: var(--sp-1) var(--sp-3); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 /* Buttons in the top bar sit on enamel blue. */
 .topbar .btn.secondary { color: #fff; border-color: rgba(255, 255, 255, 0.35); }
-.topbar .btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
 
 /* ---- Forms ------------------------------------------------------------- */
-.field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: var(--sp-4); }
 .field label {
-  font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft);
 }
 .field input, .field textarea, .field select {
-  font-family: inherit; font-size: 0.95rem; padding: 0.55rem 0.7rem;
+  font-family: inherit; font-size: var(--fs-input); min-height: var(--control-h);
+  padding: var(--sp-2) 0.7rem;
   border-radius: var(--radius); border: 1px solid var(--line-strong);
   background: var(--card); color: var(--ink);
 }
@@ -275,13 +416,13 @@ a:hover { text-decoration: underline; }
   border-color: var(--blue); outline: 3px solid var(--signal); outline-offset: 1px;
 }
 .field textarea { min-height: 110px; resize: vertical; }
-.field small { color: var(--ink-soft); font-size: 0.78rem; }
+.field small { color: var(--ink-soft); font-size: var(--fs-sm); }
 .row { display: flex; gap: 0.8rem; flex-wrap: wrap; }
 .row > * { flex: 1; min-width: 140px; }
 
 .panel {
   background: var(--card); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow);
+  border-radius: var(--radius); padding: var(--sp-4); box-shadow: var(--shadow);
   /* Wide content (the admin table) scrolls inside the panel instead of
      pushing the whole page sideways on small screens. */
   overflow-x: auto;
@@ -289,115 +430,173 @@ a:hover { text-decoration: underline; }
 .panel h2 { margin-top: 0; font-weight: 800; letter-spacing: -0.01em; }
 
 /* ---- Filter chips ------------------------------------------------------ */
-.toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.4rem; flex-wrap: wrap; }
+.toolbar { display: flex; gap: var(--sp-2); align-items: center; margin-bottom: 1.4rem; flex-wrap: wrap; }
 .chip {
-  font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase;
-  letter-spacing: 0.08em; padding: 0.4rem 0.85rem; border-radius: 2px;
+  display: inline-flex; align-items: center; min-height: var(--control-h);
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase;
+  letter-spacing: 0.08em; padding: var(--sp-1) 0.85rem; border-radius: 2px;
   border: 1px solid var(--line-strong); background: transparent;
   cursor: pointer; color: var(--ink-soft);
+  touch-action: manipulation;
 }
-.chip:hover { border-color: var(--blue); color: var(--blue); }
 /* Yellow marks the selected filter, matching the active nav item. */
 .chip.active { background: var(--signal); border-color: var(--signal); color: var(--enamel-deep); font-weight: 700; }
-.chip.active:hover { color: var(--enamel-deep); }
 
 /* ---- Messages ---------------------------------------------------------- */
 .empty {
-  text-align: center; color: var(--ink-soft); padding: 3.5rem 1rem;
+  text-align: center; color: var(--ink-soft); padding: 3.5rem var(--sp-4);
   border: 1px dashed var(--line-strong); border-radius: var(--radius);
 }
 .notice {
   padding: 0.7rem 0.9rem; border-radius: var(--radius);
-  font-size: 0.9rem; margin-bottom: 1rem; border-left: 4px solid transparent;
+  font-size: var(--fs-sm); margin-bottom: var(--sp-4); border-left: 4px solid transparent;
 }
 .notice.error { background: var(--red-tint); color: var(--red); border-left-color: var(--red); }
 .notice.info { background: var(--blue-tint); color: var(--blue); border-left-color: var(--blue); }
 
 /* ---- Tables ------------------------------------------------------------ */
 table { width: 100%; border-collapse: collapse; min-width: 420px; }
-th, td { text-align: left; padding: 0.7rem; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.7rem; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
 th {
-  font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase;
   letter-spacing: 0.1em; color: var(--ink-soft); font-weight: 700;
   border-bottom: 2px solid var(--line-strong);
 }
 
 /* ---- Chat -------------------------------------------------------------- */
-.chat { display: grid; grid-template-columns: 270px 1fr; gap: 1rem; height: 70vh; }
+.chat { display: grid; grid-template-columns: 1fr; gap: var(--sp-4); }
 .convo-list {
   border: 1px solid var(--line); border-radius: var(--radius);
   overflow-y: auto; background: var(--card);
 }
-.convo { padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--line); cursor: pointer; border-left: 3px solid transparent; }
-.convo:hover { background: var(--blue-tint); }
+.convo {
+  padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--line); cursor: pointer;
+  border-left: 3px solid transparent; touch-action: manipulation;
+}
 .convo.active { background: var(--blue-tint); border-left-color: var(--signal); }
-.convo .name { font-weight: 700; font-size: 0.93rem; display: flex; align-items: center; gap: 0.4rem; }
+.convo .name { font-weight: 700; font-size: var(--fs-base); display: flex; align-items: center; gap: var(--sp-1); }
 .convo.unread { border-left-color: var(--signal); }
 .convo.unread .name { color: var(--ink); }
 .convo-badge {
   min-width: 18px; padding: 0 0.32rem; border-radius: 999px;
-  font-family: var(--font-mono); font-size: 0.66rem; line-height: 18px; text-align: center;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow); line-height: 18px; text-align: center;
   background: var(--signal); color: var(--enamel-deep);
 }
-.convo .time { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.convo .time { font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
 
 .thread {
   display: flex; flex-direction: column;
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--card);
 }
-.messages { flex: 1; overflow-y: auto; padding: 1.1rem; display: flex; flex-direction: column; gap: 0.55rem; }
-.bubble { max-width: 70%; padding: 0.55rem 0.85rem; font-size: 0.93rem; border-radius: 10px; }
+.messages {
+  flex: 1; min-height: 50vh; overflow-y: auto; padding: 1.1rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
+}
+.bubble {
+  max-width: 85%; padding: var(--sp-2) 0.85rem; font-size: var(--fs-base); border-radius: 10px;
+  /* Nothing else in the file breaks long strings; a pasted URL would
+     otherwise push the bubble past the thread. */
+  overflow-wrap: anywhere;
+}
 .bubble.mine { align-self: flex-end; background: var(--bubble-mine); color: var(--bubble-mine-ink); border-bottom-right-radius: 2px; }
 .bubble.theirs { align-self: flex-start; background: var(--bubble-theirs); color: var(--ink); border-bottom-left-radius: 2px; }
-.composer { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--line); }
+.composer { display: flex; gap: var(--sp-2); padding: var(--sp-3); border-top: 1px solid var(--line); }
 .composer input {
-  flex: 1; padding: 0.6rem 0.8rem; border-radius: var(--radius);
+  flex: 1; font-size: var(--fs-input); min-height: var(--control-h);
+  padding: 0.6rem 0.8rem; border-radius: var(--radius);
   border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); font-family: inherit;
 }
 
 /* ---- Consent banner ---------------------------------------------------- */
 .consent {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-consent);
   background: var(--enamel-deep); color: #dbe4f7;
   border-top: 3px solid var(--signal);
-  padding: 1rem 1.5rem; display: flex; gap: 1.25rem;
+  padding: var(--sp-4) var(--sp-5); display: flex; gap: 1.25rem;
   align-items: center; flex-wrap: wrap; justify-content: center;
 }
-.consent p { margin: 0; font-size: 0.88rem; max-width: 640px; }
+.consent p { margin: 0; font-size: var(--fs-sm); max-width: 640px; }
 .consent a { color: var(--signal); }
 
 /* ---- Sign-in ----------------------------------------------------------- */
-.gate { text-align: center; padding: 4rem 1rem; }
-.gate h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+.gate { text-align: center; padding: var(--sp-7) var(--sp-4); }
+.gate h2 { font-size: var(--fs-2xl); font-weight: 800; letter-spacing: -0.02em; line-height: var(--lh-tight); margin-bottom: var(--sp-1); }
 .gate p { color: var(--ink-soft); }
 
 .providers { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.75rem; flex-wrap: wrap; }
-.btn.provider { padding: 0.7rem 1.4rem; font-size: 0.95rem; min-width: 220px; }
+.btn.provider { padding: 0.7rem 1.4rem; font-size: var(--fs-base); min-width: 220px; }
 
 .login {
-  max-width: 520px; margin: 3rem auto; text-align: center;
+  max-width: 520px; margin: var(--sp-6) auto; text-align: center;
   background: var(--card); border: 1px solid var(--line);
   border-top: 4px solid var(--signal);
-  border-radius: var(--radius); padding: 2.5rem 2rem; box-shadow: var(--shadow);
+  border-radius: var(--radius); padding: var(--sp-6) var(--sp-5); box-shadow: var(--shadow);
 }
 .login h1 {
-  font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800;
-  letter-spacing: -0.02em; margin: 0.4rem 0 0.75rem;
+  font-size: var(--fs-2xl); font-weight: 800;
+  letter-spacing: -0.02em; line-height: var(--lh-tight); margin: var(--sp-1) 0 var(--sp-3);
 }
 .login-lead { color: var(--ink-soft); margin: 0; }
-.login-note { margin: 1.75rem 0 0; font-size: 0.82rem; color: var(--ink-soft); }
+.login-note { margin: 1.75rem 0 0; font-size: var(--fs-sm); color: var(--ink-soft); }
 
-/* ---- Modal ------------------------------------------------------------- */
+/* ---- Sheet -------------------------------------------------------------
+   Full screen on phones, centred dialog from 900px up. A native <dialog>:
+   showModal() supplies the top layer, the focus trap and background inert.
+   ----------------------------------------------------------------------- */
+.sheet {
+  inset: 0; margin: 0; padding: 0; border: none;
+  width: 100%; max-width: none;
+  height: 100vh; height: 100dvh; max-height: none;
+  background: var(--card); color: var(--ink);
+  border-top: 4px solid var(--signal);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.sheet::backdrop { background: rgba(7, 24, 65, 0.6); }
+.sheet-content {
+  position: relative;
+  padding: var(--sp-5) var(--sp-4);
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
+}
+.sheet-content > h2 { margin-top: 0; font-weight: 800; letter-spacing: -0.01em; padding-right: 3rem; }
+.sheet-close {
+  position: absolute; top: var(--sp-2); right: var(--sp-2);
+  display: flex; align-items: center; justify-content: center;
+  width: var(--tap); height: var(--tap);
+  border: none; background: transparent; cursor: pointer;
+  font-size: 1.6rem; line-height: 1;
+  color: var(--ink-soft); border-radius: var(--radius);
+  touch-action: manipulation;
+}
+
+/* The tear-off. The card signature is a perforation you tear a tab from; here
+   it is real — the perforation runs above the sheet's action bar, so the
+   primary action reads as the tab you pull off the notice. It is also exactly
+   the separation a bar pinned over scrolling content needs, which is why this
+   is the one place the motif earns a job rather than decorating one. */
+.sheet .detail-actions {
+  position: sticky; bottom: 0;
+  margin: var(--sp-5) calc(var(--sp-4) * -1) calc(var(--sp-5) * -1);
+  padding: var(--sp-4);
+  padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 2px dashed var(--line-strong);
+}
+
+/* ---- Modal (legacy shell, still used by nothing after the sheet move) --- */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(7, 24, 65, 0.6);
-  display: flex; align-items: center; justify-content: center; z-index: 40; padding: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  z-index: var(--z-backdrop); padding: var(--sp-4);
 }
 .modal {
   position: relative;
   background: var(--card); border-radius: var(--radius); padding: 1.6rem;
   max-width: 540px; width: 100%; box-shadow: var(--shadow-lift);
   border-top: 4px solid var(--signal);
-  max-height: 90vh; overflow-y: auto;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
 }
 .modal.wide { max-width: 660px; }
 .modal h2 { margin-top: 0; font-weight: 800; letter-spacing: -0.01em; }
@@ -407,34 +606,35 @@ th {
   border: none; background: transparent; cursor: pointer;
   font-size: 1.6rem; line-height: 1; padding: 0.2rem 0.45rem;
   color: var(--ink-soft); border-radius: var(--radius);
+  touch-action: manipulation;
 }
-.modal-close:hover { background: var(--blue-tint); color: var(--ink); }
 
 /* ---- Listing detail view ----------------------------------------------- */
 .detail-hero {
   width: 100%; max-height: 340px; object-fit: cover;
-  border-radius: 2px; background: var(--blue-tint); margin-bottom: 0.5rem;
+  border-radius: 2px; background: var(--blue-tint); margin-bottom: var(--sp-2);
 }
 .thumbrow img { cursor: pointer; border: 2px solid transparent; }
 .thumbrow img.active { border-color: var(--signal); }
 
 .detail-title {
-  margin: 0.8rem 0 0.3rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;
+  margin: 0.8rem 0 0.3rem; font-size: var(--fs-xl); font-weight: 800;
+  letter-spacing: -0.02em; line-height: var(--lh-tight);
 }
-.modal .price { font-family: var(--font-mono); font-weight: 700; font-size: 1.6rem; color: var(--ink); }
+.modal .price { font-family: var(--font-mono); font-weight: 700; font-size: var(--fs-xl); color: var(--ink); }
 
 .detail-facts {
-  display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 1rem;
+  display: grid; grid-template-columns: auto 1fr; gap: 0.3rem var(--sp-4);
   margin: 1.1rem 0; padding: 0.9rem 0;
   border-top: 1px dashed var(--line-strong); border-bottom: 1px dashed var(--line-strong);
 }
 .detail-facts dt {
-  font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase;
   letter-spacing: 0.1em; color: var(--ink-soft); align-self: center;
 }
-.detail-facts dd { margin: 0; font-size: 0.92rem; font-weight: 600; }
+.detail-facts dd { margin: 0; font-size: var(--fs-base); font-weight: 600; }
 
-.detail-desc { white-space: pre-wrap; color: var(--ink); margin: 0 0 1.4rem; }
+.detail-desc { white-space: pre-wrap; color: var(--ink); margin: 0 0 1.4rem; overflow-wrap: anywhere; }
 .detail-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; }
 .detail-actions .btn { flex: 1; min-width: 150px; }
 
@@ -442,12 +642,12 @@ th {
 .confirm {
   border: 1px solid var(--red); border-left-width: 4px;
   background: var(--red-tint); border-radius: var(--radius);
-  padding: 0.9rem 1rem;
+  padding: 0.9rem var(--sp-4);
 }
-.confirm p { margin: 0 0 0.8rem; font-size: 0.92rem; color: var(--ink); }
+.confirm p { margin: 0 0 0.8rem; font-size: var(--fs-base); color: var(--ink); }
 
 /* Removing images while editing a listing. */
-.image-editor { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.image-editor { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .image-editor-item { position: relative; }
 .image-editor-item img {
   height: 72px; width: 72px; object-fit: cover;
@@ -457,27 +657,106 @@ th {
   position: absolute; top: -6px; right: -6px;
   width: 22px; height: 22px; padding: 0; line-height: 1;
   border: none; border-radius: 50%; cursor: pointer;
-  background: var(--red); color: #fff; font-size: 1rem; font-weight: 700;
+  background: var(--red); color: #fff; font-size: var(--fs-base); font-weight: 700;
+  touch-action: manipulation;
 }
-.image-remove:hover { filter: brightness(1.1); }
+
+/* Replying expands here, inside the detail sheet, rather than stacking a
+   second overlay on top of it. */
+.contact-form {
+  flex: 1 0 100%;
+  border-top: 1px dashed var(--line-strong);
+  padding-top: var(--sp-4); margin-top: var(--sp-2);
+}
+.contact-form .row { justify-content: flex-end; }
 
 /* Shown in place of the reply button when replying is not possible. */
 .contact-note {
   margin: 0; flex: 1;
-  font-family: var(--font-mono); font-size: 0.72rem;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow);
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft);
 }
 
-/* ---- Responsive -------------------------------------------------------- */
-@media (max-width: 760px) {
-  .chat { grid-template-columns: 1fr; height: auto; }
-  .messages { min-height: 50vh; }
-  .topbar { flex-wrap: wrap; gap: 0.75rem; }
-  .container { padding: 1.5rem 1rem 5rem; }
-  .bubble { max-width: 85%; }
+/* =========================================================================
+   >= 600px — the card grid can hold two columns and heads go side by side.
+   ========================================================================= */
+@media (min-width: 600px) {
+  .container { padding: var(--sp-6) var(--sp-5) 5rem; }
+  .grid { gap: 1.25rem; }
+  .panel { padding: var(--sp-5); }
+}
+
+/* =========================================================================
+   >= 900px — the chrome switch. Desktop density and the two-pane chat.
+   ========================================================================= */
+@media (min-width: 900px) {
+  :root {
+    /* One place decides desktop density. Mobile keeps 16px legibility and a
+       44px target; here type tightens and controls shrink to a cursor size. */
+    --fs-base: 0.95rem;
+    --fs-sm: 0.9rem;
+    --fs-input: 0.95rem;
+    --control-h: 36px;
+  }
+
+  .topbar { gap: var(--sp-5); padding: 0.7rem var(--sp-5); }
+  .brand { font-size: var(--fs-lg); }
+  .topbar .wide-only { display: inline-flex; }
+  .topbar .nav.wide-only { display: flex; }
+  .account-link { max-width: 22ch; }
+  /* Navigation returns to the header, so the bottom bar and its clearance go. */
+  .tabbar { display: none; }
+  .container { padding-bottom: 5rem; }
+
+  .chat { grid-template-columns: 270px 1fr; height: 70vh; }
+  .messages { min-height: 0; }
+  .bubble { max-width: 70%; }
+
+  /* Back to a centred dialog with room around it. */
+  .sheet {
+    inset: auto; margin: auto;
+    width: 100%; max-width: 540px;
+    height: auto; max-height: 90dvh;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lift);
+  }
+  .sheet.wide { max-width: 660px; }
+  .sheet-content { padding: 1.6rem; }
+  .sheet .detail-actions {
+    margin: var(--sp-5) -1.6rem -1.6rem;
+    padding: var(--sp-4) 1.6rem;
+  }
+}
+
+/* =========================================================================
+   >= 1200px — comfort only.
+   ========================================================================= */
+@media (min-width: 1200px) {
+  .container { padding: var(--sp-6) var(--sp-6) 5rem; }
+}
+
+/* =========================================================================
+   Hover is a pointer capability, not a screen size. Gating these stops a
+   tap on a phone from leaving a card stuck in its hover-lifted state.
+   ========================================================================= */
+@media (hover: hover) and (pointer: fine) {
+  a:hover { text-decoration: underline; }
+  .nav a:hover { background: rgba(255, 255, 255, 0.09); color: #fff; text-decoration: none; }
+  .userbox a:hover { color: #fff; }
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .card-clickable:hover { border-color: var(--line-strong); }
+  .btn:hover { filter: brightness(1.07); text-decoration: none; }
+  .btn.secondary:hover { background: var(--blue-tint); filter: none; }
+  .topbar .btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+  .chip:hover { border-color: var(--blue); color: var(--blue); }
+  .chip.active:hover { color: var(--enamel-deep); }
+  .convo:hover { background: var(--blue-tint); }
+  .modal-close:hover { background: var(--blue-tint); color: var(--ink); }
+  .image-remove:hover { filter: brightness(1.1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   .card:hover { transform: none; }
+  .btn:active { transform: none; }
 }
