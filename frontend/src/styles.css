@@ -585,15 +585,30 @@ body[data-chat-thread='open'] .container {
 }
 
 /* ---- Consent banner ---------------------------------------------------- */
+/* Sits on top of the tab bar rather than over it, and stacks as a column so it
+   costs ~2 lines instead of the ~5 the old copy reflowed to at 375px. The
+   max-height is a backstop: a fixed bar must never be able to eat the screen. */
 .consent {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-consent);
+  position: fixed; left: 0; right: 0; z-index: var(--z-consent);
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   background: var(--enamel-deep); color: #dbe4f7;
   border-top: 3px solid var(--signal);
-  padding: var(--sp-4) var(--sp-5); display: flex; gap: 1.25rem;
-  align-items: center; flex-wrap: wrap; justify-content: center;
+  padding: var(--sp-3) var(--sp-4);
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  align-items: stretch;
+  max-height: 45dvh; overflow-y: auto;
 }
 .consent p { margin: 0; font-size: var(--fs-sm); max-width: 640px; }
 .consent a { color: var(--signal); }
+/* Full width, because a lone action on a phone should not need aiming. */
+.consent .btn { width: 100%; }
+
+/* While a chat thread is open the tab bar is gone, so reclaim its offset. */
+body[data-chat-thread='open'] .consent {
+  bottom: 0; padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+}
 
 /* ---- Sign-in ----------------------------------------------------------- */
 .gate { text-align: center; padding: var(--sp-7) var(--sp-4); }
@@ -754,6 +769,13 @@ body[data-chat-thread='open'] .container {
   .container { padding: var(--sp-6) var(--sp-5) 5rem; }
   .grid { gap: 1.25rem; }
   .panel { padding: var(--sp-5); }
+
+  /* Enough width for copy and button to share a line. */
+  .consent {
+    flex-direction: row; align-items: center; justify-content: center;
+    gap: 1.25rem; padding: var(--sp-4) var(--sp-5);
+  }
+  .consent .btn { width: auto; }
 }
 
 /* =========================================================================
@@ -777,6 +799,7 @@ body[data-chat-thread='open'] .container {
   /* Navigation returns to the header, so the bottom bar and its clearance go. */
   .tabbar { display: none; }
   .container { padding-bottom: 5rem; }
+  .consent { bottom: 0; }
 
   /* Both panes side by side again. */
   .chat { grid-template-columns: 270px 1fr; height: 70vh; }

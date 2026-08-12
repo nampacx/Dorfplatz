@@ -30,9 +30,14 @@ export default function ConsentBanner() {
 
   return (
     <div className="consent" role="dialog" aria-label="Datenschutz-Hinweis">
+      {/* Kept to two lines at 375px: the banner is fixed over the content, so
+          every extra line is screen the member cannot use until they accept.
+          The link colour comes from `.consent a`; the inline style it used to
+          carry pointed at var(--pin), which is not defined anywhere, so the
+          declaration was dropped and the link did not read as a link at all. */}
       <p>
-        Wir verwenden nur technisch notwendige Cookies für die Anmeldung. Mit der Nutzung
-        stimmst du unserer <Link to="/privacy" style={{ color: 'var(--pin)' }}>Datenschutzerklärung</Link> zu.
+        Nur technisch notwendige Cookies. Mehr in der{' '}
+        <Link to="/privacy">Datenschutzerklärung</Link>.
       </p>
       <button className="btn" onClick={accept}>Verstanden</button>
     </div>
