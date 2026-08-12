@@ -177,12 +177,67 @@ a { color: var(--blue); text-decoration: none; }
 }
 
 .topbar {
-  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
-  padding: 0.7rem var(--sp-5);
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-height: var(--header-h);
+  padding: var(--sp-2) var(--sp-4);
+  padding-top: calc(var(--sp-2) + env(safe-area-inset-top));
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
   background: var(--enamel);
   border-bottom: 3px solid var(--signal);
   position: sticky; top: 0; z-index: var(--z-header);
 }
+
+/* Shown only from 900px up: below that these live in the TabBar and on the
+   account page. Declared once here so the markup stays one tree.
+   Scoped to .topbar deliberately — a bare .wide-only would tie on specificity
+   with .nav/.btn and lose to whichever is declared later. */
+.topbar .wide-only { display: none; }
+
+/* A long email must not push the header into a second row. */
+.account-link {
+  max-width: 45vw; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- Bottom tab bar (< 900px) ------------------------------------------
+   Four fixed slots in the thumb zone. The active tab is marked with the same
+   3px yellow rule the header wears along its bottom edge — the signal colour
+   saying "you are here", consistent with .chip.active and .nav a.active.
+   ----------------------------------------------------------------------- */
+.tabbar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-tabbar);
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  background: var(--enamel);
+  border-top: 1px solid var(--enamel-deep);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar a {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  min-height: var(--nav-h); padding: var(--sp-1) 0.2rem;
+  border-top: 3px solid transparent;
+  color: #c3d2f0; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.02em;
+  text-align: center; text-decoration: none;
+  touch-action: manipulation;
+}
+.tabbar a.active { color: #fff; border-top-color: var(--signal); }
+/* Anchored to the tab cell, not to the label. "NACHRICHTEN" fills 82px of a
+   94px slot, so hanging the badge off the end of the text would push it past
+   the screen edge in the last slot. */
+.tab-badge {
+  position: absolute; top: 5px; right: 10px;
+  min-width: 17px; padding: 0 0.28rem;
+  font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+  line-height: 17px; text-align: center; border-radius: 999px;
+  background: var(--signal); color: var(--enamel-deep);
+}
+
+/* Buttons stacked full-width — the shape a phone wants for a group of
+   equal-weight actions. */
+.stack-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+.stack-actions .btn { width: 100%; }
 .brand {
   display: flex; align-items: center; gap: var(--sp-2);
   font-weight: 800; font-size: var(--fs-base); color: #fff;
@@ -220,6 +275,11 @@ a { color: var(--blue); text-decoration: none; }
 .container {
   max-width: 1100px; width: 100%; margin: 0 auto;
   padding: var(--sp-5) var(--sp-4) 5rem;
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
+  /* Clears the fixed tab bar. The consent banner adds its own clearance in
+     its own rule, so the two do not both reserve the same space. */
+  padding-bottom: calc(var(--nav-h) + var(--sp-5) + env(safe-area-inset-bottom));
 }
 
 .page-head { margin-bottom: var(--sp-5); }
@@ -586,8 +646,14 @@ th {
     --control-h: 36px;
   }
 
-  .topbar { gap: var(--sp-5); flex-wrap: nowrap; }
+  .topbar { gap: var(--sp-5); padding: 0.7rem var(--sp-5); }
   .brand { font-size: var(--fs-lg); }
+  .topbar .wide-only { display: inline-flex; }
+  .topbar .nav.wide-only { display: flex; }
+  .account-link { max-width: 22ch; }
+  /* Navigation returns to the header, so the bottom bar and its clearance go. */
+  .tabbar { display: none; }
+  .container { padding-bottom: 5rem; }
 
   .chat { grid-template-columns: 270px 1fr; height: 70vh; }
   .messages { min-height: 0; }
