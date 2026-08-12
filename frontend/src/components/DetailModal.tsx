@@ -1,8 +1,10 @@
-import { useEffect, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import Sheet from './Sheet'
 
 /**
- * Overlay shell for listing detail views. Closes on backdrop click, on the
- * close button, and on Escape.
+ * Listing detail view. A thin alias over {@link Sheet} so the five call sites
+ * (events, moderation, services, goods, my events) keep their existing import
+ * and get full-screen presentation, focus trapping and Back-to-close for free.
  */
 export default function DetailModal({
   title,
@@ -13,26 +15,9 @@ export default function DetailModal({
   onClose: () => void
   children: ReactNode
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal wide"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button className="modal-close" onClick={onClose} aria-label="Schließen">×</button>
-        {children}
-      </div>
-    </div>
+    <Sheet title={title} onClose={onClose} wide>
+      {children}
+    </Sheet>
   )
 }

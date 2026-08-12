@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { ErrorNotice, LoginGate, Loading, useAsync } from '../../components/Common'
+import Sheet from '../../components/Sheet'
 import EventDetail, { STATUS_LABELS } from '../events/EventDetail'
 import EventFormModal from '../events/EventFormModal'
 import type { EventPost } from '../../types'
@@ -208,8 +209,8 @@ export default function AccountPage() {
       </div>
 
       {confirming && (
-        <div className="modal-backdrop" onClick={() => setConfirming(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <Sheet title="Konto wirklich löschen?" onClose={() => setConfirming(false)}>
+          <div>
             <h2 style={{ marginTop: 0 }}>Konto wirklich löschen?</h2>
             <p>
               Deine persönlichen Daten werden anonymisiert, deine Anzeigen entfernt und deine
@@ -220,7 +221,7 @@ export default function AccountPage() {
               <button className="btn danger" disabled={busy} onClick={deleteAccount}>Endgültig löschen</button>
             </div>
           </div>
-        </div>
+        </Sheet>
       )}
     </>
   )

@@ -539,7 +539,51 @@ th {
 .login-lead { color: var(--ink-soft); margin: 0; }
 .login-note { margin: 1.75rem 0 0; font-size: var(--fs-sm); color: var(--ink-soft); }
 
-/* ---- Modal ------------------------------------------------------------- */
+/* ---- Sheet -------------------------------------------------------------
+   Full screen on phones, centred dialog from 900px up. A native <dialog>:
+   showModal() supplies the top layer, the focus trap and background inert.
+   ----------------------------------------------------------------------- */
+.sheet {
+  inset: 0; margin: 0; padding: 0; border: none;
+  width: 100%; max-width: none;
+  height: 100vh; height: 100dvh; max-height: none;
+  background: var(--card); color: var(--ink);
+  border-top: 4px solid var(--signal);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.sheet::backdrop { background: rgba(7, 24, 65, 0.6); }
+.sheet-content {
+  position: relative;
+  padding: var(--sp-5) var(--sp-4);
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
+}
+.sheet-content > h2 { margin-top: 0; font-weight: 800; letter-spacing: -0.01em; padding-right: 3rem; }
+.sheet-close {
+  position: absolute; top: var(--sp-2); right: var(--sp-2);
+  display: flex; align-items: center; justify-content: center;
+  width: var(--tap); height: var(--tap);
+  border: none; background: transparent; cursor: pointer;
+  font-size: 1.6rem; line-height: 1;
+  color: var(--ink-soft); border-radius: var(--radius);
+  touch-action: manipulation;
+}
+
+/* The tear-off. The card signature is a perforation you tear a tab from; here
+   it is real — the perforation runs above the sheet's action bar, so the
+   primary action reads as the tab you pull off the notice. It is also exactly
+   the separation a bar pinned over scrolling content needs, which is why this
+   is the one place the motif earns a job rather than decorating one. */
+.sheet .detail-actions {
+  position: sticky; bottom: 0;
+  margin: var(--sp-5) calc(var(--sp-4) * -1) calc(var(--sp-5) * -1);
+  padding: var(--sp-4);
+  padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 2px dashed var(--line-strong);
+}
+
+/* ---- Modal (legacy shell, still used by nothing after the sheet move) --- */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(7, 24, 65, 0.6);
   display: flex; align-items: center; justify-content: center;
@@ -617,6 +661,15 @@ th {
   touch-action: manipulation;
 }
 
+/* Replying expands here, inside the detail sheet, rather than stacking a
+   second overlay on top of it. */
+.contact-form {
+  flex: 1 0 100%;
+  border-top: 1px dashed var(--line-strong);
+  padding-top: var(--sp-4); margin-top: var(--sp-2);
+}
+.contact-form .row { justify-content: flex-end; }
+
 /* Shown in place of the reply button when replying is not possible. */
 .contact-note {
   margin: 0; flex: 1;
@@ -658,6 +711,21 @@ th {
   .chat { grid-template-columns: 270px 1fr; height: 70vh; }
   .messages { min-height: 0; }
   .bubble { max-width: 70%; }
+
+  /* Back to a centred dialog with room around it. */
+  .sheet {
+    inset: auto; margin: auto;
+    width: 100%; max-width: 540px;
+    height: auto; max-height: 90dvh;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lift);
+  }
+  .sheet.wide { max-width: 660px; }
+  .sheet-content { padding: 1.6rem; }
+  .sheet .detail-actions {
+    margin: var(--sp-5) -1.6rem -1.6rem;
+    padding: var(--sp-4) 1.6rem;
+  }
 }
 
 /* =========================================================================

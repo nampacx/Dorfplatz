@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
+import Sheet from '../../components/Sheet'
 import ContactButton from '../../components/ContactButton'
 import DetailModal from '../../components/DetailModal'
 import type { ServicePost } from '../../types'
@@ -131,8 +132,8 @@ function ServiceFormModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+    <Sheet title={existing ? 'Eintrag bearbeiten' : 'Dienstleistung einstellen'} onClose={onClose}>
+      <form onSubmit={submit}>
         <h2 style={{ marginTop: 0 }}>
           {existing ? 'Eintrag bearbeiten' : 'Dienstleistung einstellen'}
         </h2>
@@ -166,7 +167,7 @@ function ServiceFormModal({
           </button>
         </div>
       </form>
-    </div>
+    </Sheet>
   )
 }
 
