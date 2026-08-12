@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
 import Sheet from '../../components/Sheet'
+import Gallery from './Gallery'
 import ContactButton from '../../components/ContactButton'
 import DetailModal from '../../components/DetailModal'
 import type { GoodsImage, GoodsPost, UploadSlot } from '../../types'
@@ -32,7 +33,6 @@ function GoodsDetail({
   onEdit: () => void
   onDeleted: () => void
 }) {
-  const [active, setActive] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,24 +52,7 @@ function GoodsDetail({
 
   return (
     <DetailModal title={item.title} onClose={onClose}>
-      {item.images.length > 0 && (
-        <>
-          <img className="detail-hero" src={item.images[active]?.url} alt={item.title} />
-          {item.images.length > 1 && (
-            <div className="thumbrow">
-              {item.images.map((img, i) => (
-                <img
-                  key={img.id}
-                  src={img.url}
-                  alt={`${item.title} ${i + 1}`}
-                  className={i === active ? 'active' : undefined}
-                  onClick={() => setActive(i)}
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      <Gallery images={item.images} title={item.title} />
 
       <h2 className="detail-title">{item.title}</h2>
       <div className="price">{money(item.price, item.currency)}</div>

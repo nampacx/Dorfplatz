@@ -357,8 +357,35 @@ a { color: var(--blue); text-decoration: none; }
   width: 100%; aspect-ratio: 4/3; object-fit: cover;
   border-radius: 2px; margin-bottom: 0.7rem; background: var(--blue-tint);
 }
-.thumbrow { display: flex; gap: var(--sp-1); overflow-x: auto; }
-.thumbrow img { height: 64px; width: 64px; object-fit: cover; border-radius: 2px; }
+/* Listing gallery. The strip snaps horizontally — swipe on a phone, thumbnails
+   drive it on a desktop. One strip for both, so "which image is showing" has a
+   single answer. */
+.gallery {
+  display: flex; overflow-x: auto;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  border-radius: 2px; background: var(--blue-tint);
+  scrollbar-width: none;
+}
+.gallery::-webkit-scrollbar { display: none; }
+.gallery img {
+  flex: 0 0 100%; width: 100%; aspect-ratio: 4/3; object-fit: cover;
+  scroll-snap-align: center;
+}
+.gallery-dots { display: flex; justify-content: center; gap: var(--sp-2); margin: var(--sp-2) 0; }
+.gallery-dots button {
+  position: relative; width: 8px; height: 8px; padding: 0;
+  border: none; border-radius: 999px; background: var(--line-strong);
+  cursor: pointer; touch-action: manipulation;
+}
+.gallery-dots button.active { background: var(--signal); }
+/* Full-size hit area without a full-size dot. */
+.gallery-dots button::before {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  width: var(--tap); height: var(--tap); transform: translate(-50%, -50%);
+}
+/* Thumbnails are the desktop control; the dots serve a phone. */
+.thumbrow { display: none; }
 
 /* ---- Badges ------------------------------------------------------------
    Blue = sought / official. Yellow = offered / awaiting action.
@@ -660,13 +687,6 @@ body[data-chat-thread='open'] .container {
 }
 
 /* ---- Listing detail view ----------------------------------------------- */
-.detail-hero {
-  width: 100%; max-height: 340px; object-fit: cover;
-  border-radius: 2px; background: var(--blue-tint); margin-bottom: var(--sp-2);
-}
-.thumbrow img { cursor: pointer; border: 2px solid transparent; }
-.thumbrow img.active { border-color: var(--signal); }
-
 .detail-title {
   margin: 0.8rem 0 0.3rem; font-size: var(--fs-xl); font-weight: 800;
   letter-spacing: -0.02em; line-height: var(--lh-tight);
@@ -767,13 +787,27 @@ body[data-chat-thread='open'] .container {
 
   /* Back to a centred dialog with room around it. */
   .sheet {
-    inset: auto; margin: auto;
+    /* inset stays 0 so margin:auto has edges to centre between; inset:auto
+       drops the dialog to the top-left corner. */
+    inset: 0; margin: auto;
     width: 100%; max-width: 540px;
     height: auto; max-height: 90dvh;
     border-radius: var(--radius);
     box-shadow: var(--shadow-lift);
   }
   .sheet.wide { max-width: 660px; }
+
+  /* Sized like the hero it replaces; thumbnails take over from the dots. */
+  .gallery { height: 340px; }
+  .gallery img { aspect-ratio: auto; height: 340px; }
+  .gallery-dots { display: none; }
+  .thumbrow { display: flex; gap: var(--sp-1); overflow-x: auto; margin: var(--sp-2) 0; }
+  .thumbrow button {
+    padding: 0; border: 2px solid transparent; border-radius: 2px;
+    background: none; cursor: pointer; line-height: 0;
+  }
+  .thumbrow button.active { border-color: var(--signal); }
+  .thumbrow img { height: 64px; width: 64px; object-fit: cover; display: block; }
   .sheet-content { padding: 1.6rem; }
   .sheet .detail-actions {
     margin: var(--sp-5) -1.6rem -1.6rem;
