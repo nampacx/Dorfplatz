@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
-import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
+import { EmptyState, ErrorNotice, Loading, RequireMember, useAsync } from '../../components/Common'
 import Sheet from '../../components/Sheet'
 import Gallery from './Gallery'
 import ContactButton from '../../components/ContactButton'
@@ -277,7 +277,16 @@ function GoodsFormModal({
   )
 }
 
+/** Members only — see the access note in GoodsFunctions. */
 export default function GoodsPage() {
+  return (
+    <RequireMember message="Melde dich an, um den Marktplatz zu sehen.">
+      <GoodsBoard />
+    </RequireMember>
+  )
+}
+
+function GoodsBoard() {
   const { me } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<GoodsPost | null>(null)

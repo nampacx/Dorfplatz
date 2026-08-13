@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
-import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
+import { EmptyState, ErrorNotice, Loading, RequireMember, useAsync } from '../../components/Common'
 import Sheet from '../../components/Sheet'
 import ContactButton from '../../components/ContactButton'
 import DetailModal from '../../components/DetailModal'
@@ -171,7 +171,16 @@ function ServiceFormModal({
   )
 }
 
+/** Members only — see the access note in ServicesFunctions. */
 export default function ServicesPage() {
+  return (
+    <RequireMember message="Melde dich an, um Dienstleistungen zu sehen.">
+      <ServicesBoard />
+    </RequireMember>
+  )
+}
+
+function ServicesBoard() {
   const { me } = useAuth()
   const [filter, setFilter] = useState<Filter>('all')
   const [showForm, setShowForm] = useState(false)

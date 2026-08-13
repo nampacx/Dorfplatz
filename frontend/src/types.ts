@@ -1,11 +1,15 @@
 export type Role = 'user' | 'moderator' | 'admin'
 
+/** Whether an admin has let this account onto the board. */
+export type AccessStatus = 'Pending' | 'Approved' | 'Rejected'
+
 export interface Me {
   id: string
   email: string | null
   displayName: string | null
   roles: Role[]
   hasConsented: boolean
+  status: AccessStatus
 }
 
 /** Fixed list, mirrored by the EventCategory enum in the API. */
@@ -100,5 +104,7 @@ export interface AdminUser {
   email: string | null
   displayName: string | null
   roles: Role[]
+  status: AccessStatus
   createdAt: string
+  decidedAt: string | null
 }

@@ -37,6 +37,7 @@ public class AdminFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
         if (!CurrentUserService.IsAdmin(me)) return HttpResults.Forbidden();
 
         var users = await _db.Users.Include(u => u.Roles)
@@ -46,7 +47,8 @@ public class AdminFunctions
 
         var dtos = users.Select(u => new AdminUserDto(
             u.Id, u.Email, u.DisplayName,
-            CurrentUserService.EffectiveRoles(u).ToArray(), u.CreatedAt));
+            CurrentUserService.EffectiveRoles(u).ToArray(),
+            u.Status.ToString(), u.CreatedAt, u.DecidedAt));
         return new OkObjectResult(dtos);
     }
 
@@ -58,6 +60,7 @@ public class AdminFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
         if (!CurrentUserService.IsAdmin(me)) return HttpResults.Forbidden();
 
         var body = await req.ReadJsonAsync<UpdateRolesRequest>();
@@ -101,6 +104,49 @@ public class AdminFunctions
         // Re-read rather than trusting the collection loaded before the change.
         await _db.Entry(target).Collection(t => t.Roles).LoadAsync();
         var roles = CurrentUserService.EffectiveRoles(target).ToArray();
-        return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName, roles, target.CreatedAt));
+        return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName, roles,
+            target.Status.ToString(), target.CreatedAt, target.DecidedAt));
+    }
+
+    /// <summary>
+    /// Let a member onto the board, or turn them away. Admin only; audit-logged.
+    ///
+    /// Rejecting is not a punishment, it is how the queue gets emptied: a
+    /// rejected account can still sign in and see that it was not approved,
+    /// and an admin can approve it later if that was a mistake.
+    /// </summary>
+    [Function("UpdateUserApproval")]
+    public async Task<IActionResult> UpdateApproval(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "members/{id:guid}/approval")] HttpRequest req,
+        Guid id)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
+        if (!CurrentUserService.IsAdmin(me)) return HttpResults.Forbidden();
+
+        var body = await req.ReadJsonAsync<UpdateApprovalRequest>();
+        if (body is null) return new BadRequestObjectResult("A decision is required.");
+
+        var target = await _db.Users.Include(u => u.Roles)
+            .FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
+        if (target is null) return new NotFoundResult();
+
+        // An admin who revoked their own access would lock themselves out of
+        // the page that could undo it.
+        if (target.Id == me.Id && !body.Approve)
+            return new BadRequestObjectResult("You cannot withdraw your own access.");
+
+        target.Status = body.Approve ? AccessStatus.Approved : AccessStatus.Rejected;
+        target.DecidedAt = DateTimeOffset.UtcNow;
+        target.DecidedByUserId = me.Id;
+        _audit.Record(body.Approve ? "member.approve" : "member.reject", me.Id, "user", target.Id,
+            new { status = target.Status.ToString() });
+
+        await _db.SaveChangesAsync();
+
+        return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName,
+            CurrentUserService.EffectiveRoles(target).ToArray(),
+            target.Status.ToString(), target.CreatedAt, target.DecidedAt));
     }
 }

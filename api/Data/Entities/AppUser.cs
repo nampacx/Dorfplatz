@@ -22,6 +22,15 @@ public class AppUser
     /// <summary>Set on GDPR erasure. Personal fields are cleared and the account is hidden.</summary>
     public DateTimeOffset? DeletedAt { get; set; }
 
+    /// <summary>
+    /// Whether an admin has let this person onto the board. Signing in creates
+    /// the account; it does not grant access.
+    /// </summary>
+    public AccessStatus Status { get; set; } = AccessStatus.Pending;
+
+    public DateTimeOffset? DecidedAt { get; set; }
+    public Guid? DecidedByUserId { get; set; }
+
     public ICollection<UserRole> Roles { get; set; } = new List<UserRole>();
 }
 

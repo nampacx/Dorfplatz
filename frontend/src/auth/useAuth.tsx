@@ -8,6 +8,8 @@ interface AuthState {
   hasRole: (role: Role) => boolean
   isModerator: boolean
   isAdmin: boolean
+  /** Signed in AND let onto the board by an admin. Signing in is not enough. */
+  isApproved: boolean
   refresh: () => Promise<void>
 }
 
@@ -58,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasRole,
         isModerator: hasRole('moderator') || hasRole('admin'),
         isAdmin: hasRole('admin'),
+        isApproved: me?.status === 'Approved',
         refresh,
       }}
     >

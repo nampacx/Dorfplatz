@@ -77,6 +77,15 @@ public class GetRolesFunction
 
         await _db.SaveChangesAsync();
 
+        // Signing in creates the account; an admin decides whether it may be
+        // used. Until then the person is "authenticated" to Static Web Apps but
+        // holds no application role, so role-gated routes stay closed to them.
+        if (user.Status != AccessStatus.Approved)
+        {
+            _logger.LogInformation("No roles for {UserId}: access is {Status}", payload.UserId, user.Status);
+            return new OkObjectResult(new { roles = Array.Empty<string>() });
+        }
+
         var roles = new HashSet<string> { Roles.User };
         foreach (var r in user.Roles) roles.Add(r.Role);
 
