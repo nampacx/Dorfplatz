@@ -12,7 +12,7 @@ function fmtDate(iso: string | null) {
 }
 
 export default function EventsPage() {
-  const { me } = useAuth()
+  const { me, isApproved } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EventPost | null>(null)
   const [selected, setSelected] = useState<EventPost | null>(null)
@@ -29,7 +29,10 @@ export default function EventsPage() {
           <h1>Events & Neuigkeiten</h1>
           <p>Vereinsfeste, Partys und Ankündigungen aus der Nachbarschaft.</p>
         </div>
-        {me && <button className="btn" onClick={() => setShowForm(true)}>+ Event einreichen</button>}
+        {/* The board stays readable for everyone; submitting needs a member. */}
+        {me && isApproved && (
+          <button className="btn" onClick={() => setShowForm(true)}>+ Event einreichen</button>
+        )}
       </div>
 
       <div className="toolbar">

@@ -52,6 +52,7 @@ public class ChatFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var convos = await _db.Conversations
             .Include(c => c.ParticipantA).Include(c => c.ParticipantB)
@@ -90,6 +91,7 @@ public class ChatFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var total = await _db.Messages
             .Where(UnreadFor(me.Id))
@@ -109,6 +111,7 @@ public class ChatFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var convo = await _db.Conversations.FirstOrDefaultAsync(c => c.Id == id);
         if (convo is null) return new NotFoundResult();
@@ -130,6 +133,7 @@ public class ChatFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var convo = await _db.Conversations.FirstOrDefaultAsync(c => c.Id == id);
         if (convo is null) return new NotFoundResult();
@@ -152,6 +156,7 @@ public class ChatFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new StartConversationOutput { HttpResponse = new UnauthorizedResult() };
+        if (!CurrentUserService.IsApproved(me)) return new StartConversationOutput { HttpResponse = HttpResults.PendingApproval() };
 
         var body = await req.ReadJsonAsync<StartConversationRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.FirstMessage) || body.RecipientId == me.Id)
@@ -198,6 +203,7 @@ public class ChatFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new SendMessageOutput { HttpResponse = new UnauthorizedResult() };
+        if (!CurrentUserService.IsApproved(me)) return new SendMessageOutput { HttpResponse = HttpResults.PendingApproval() };
 
         var body = await req.ReadJsonAsync<SendMessageRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Body))

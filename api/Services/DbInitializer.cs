@@ -44,7 +44,11 @@ public static class DbInitializer
             {
                 ProviderUserId = $"seed:{adminEmail}",
                 Email = adminEmail,
-                DisplayName = adminEmail
+                DisplayName = adminEmail,
+                // The bootstrap admin approves everyone else, so they cannot be
+                // waiting on an approval themselves.
+                Status = AccessStatus.Approved,
+                DecidedAt = DateTimeOffset.UtcNow
             };
             db.Users.Add(existing);
         }

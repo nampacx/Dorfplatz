@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api/client'
-import { useAuth } from '../../auth/useAuth'
 import { useChatConnection } from '../../chat/ChatConnection'
-import { LoginGate, Loading } from '../../components/Common'
+import { RequireMember } from '../../components/Common'
 import useIsWide from '../../hooks/useIsWide'
 import type { Conversation, Message } from '../../types'
 
 export default function ChatPage() {
-  const { me, loading } = useAuth()
-  if (loading) return <Loading />
-  if (!me) return <LoginGate message="Melde dich an, um Nachrichten zu senden." />
-  return <Chat />
+  return (
+    <RequireMember message="Melde dich an, um Nachrichten zu senden.">
+      <Chat />
+    </RequireMember>
+  )
 }
 
 function fmtTime(iso: string) {

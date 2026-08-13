@@ -7,7 +7,8 @@
     <script>
       (function () {
         const json = (d) => new Response(JSON.stringify(d), { status: 200, headers: { 'content-type': 'application/json' } })
-        const me = { id: 'u1', email: 'test@example.com', displayName: 'Testnutzer', roles: ['user','moderator','admin'], hasConsented: false }
+        const status = new URLSearchParams(location.search).get('status') || 'Approved'
+        const me = { id: 'u1', email: 'test@example.com', displayName: 'Testnutzer', roles: ['user','moderator','admin'], hasConsented: true, status }
         const convos = [
           { id: 'c1', listingType: 'goods', listingId: 'g1', otherUserId: 'u2', otherUserName: 'Bernd Schmidt', lastMessageAt: '2026-08-11T18:00:00Z', unreadCount: 2 },
           { id: 'c2', listingType: null, listingId: null, otherUserId: 'u3', otherUserName: 'Claudia Weber', lastMessageAt: '2026-08-10T09:30:00Z', unreadCount: 0 }
@@ -39,6 +40,11 @@
           if (s.includes('/api/goods')) return json(goods)
           if (s.includes('/api/services')) return json(services)
           if (s.includes('/api/events')) return json(events)
+          if (s.includes('/api/members')) return json([
+            { id: 'u1', email: 'test@example.com', displayName: 'Testnutzer', roles: ['user','moderator','admin'], status: 'Approved', createdAt: '2026-07-01T10:00:00Z', decidedAt: '2026-07-01T10:00:00Z' },
+            { id: 'u9', email: 'neu@example.com', displayName: 'Neue Person', roles: ['user'], status: 'Pending', createdAt: '2026-08-12T10:00:00Z', decidedAt: null },
+            { id: 'u8', email: 'spam@example.com', displayName: null, roles: ['user'], status: 'Rejected', createdAt: '2026-08-05T10:00:00Z', decidedAt: '2026-08-06T10:00:00Z' }
+          ])
           return json([])
         }
       })()

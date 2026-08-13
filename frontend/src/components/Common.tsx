@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import ProviderButtons from '../auth/ProviderButtons'
 import type { Role } from '../types'
@@ -26,11 +27,57 @@ export function LoginGate({ message }: { message?: string }) {
   )
 }
 
+/**
+ * Shown to someone who has signed in but has not been let onto the board yet.
+ *
+ * It names the account, because the most common confusion is having signed in
+ * with the wrong one of several Microsoft accounts, and offers the way out —
+ * signing out — rather than leaving them on a dead end.
+ */
+export function PendingGate() {
+  const { me } = useAuth()
+  const rejected = me?.status === 'Rejected'
+  return (
+    <div className="gate">
+      <h2>{rejected ? 'Kein Zugang' : 'Dein Zugang wird geprüft'}</h2>
+      <p>
+        {rejected
+          ? 'Dieses Konto wurde nicht für das schwarze Brett freigegeben.'
+          : 'Ein Administrator muss dein Konto freigeben, bevor du Dienstleistungen, den Marktplatz und Nachrichten nutzen kannst. Events kannst du schon jetzt lesen.'}
+      </p>
+      <p className="u-label" style={{ marginBottom: '1.5rem' }}>
+        Angemeldet als {me?.email ?? me?.displayName ?? 'unbekannt'}
+      </p>
+      <div className="stack-actions" style={{ maxWidth: 320, margin: '0 auto' }}>
+        <Link className="btn" to="/">Zu den Events</Link>
+        <a className="btn secondary" href="/.auth/logout?post_logout_redirect_uri=/">
+          Mit einem anderen Konto anmelden
+        </a>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Gate content behind membership: signed in, and approved. Used by the parts
+ * of the board that are for members only — Dienstleistungen, Marktplatz, chat.
+ */
+export function RequireMember({ message, children }: { message?: string; children: ReactNode }) {
+  const { me, loading, isApproved } = useAuth()
+  if (loading) return <Loading />
+  if (!me) return <LoginGate message={message} />
+  if (!isApproved) return <PendingGate />
+  return <>{children}</>
+}
+
 /** Gate content behind auth and (optionally) a role. */
 export function RequireRole({ role, children }: { role?: Role; children: ReactNode }) {
-  const { me, loading, hasRole } = useAuth()
+  const { me, loading, hasRole, isApproved } = useAuth()
   if (loading) return <Loading />
   if (!me) return <LoginGate />
+  // A role granted to an account still waiting on approval does not open
+  // anything: the server checks approval before it checks the role.
+  if (!isApproved) return <PendingGate />
   if (role && !(hasRole(role) || hasRole('admin'))) {
     return <EmptyState>Für diesen Bereich fehlt dir die Berechtigung.</EmptyState>
   }

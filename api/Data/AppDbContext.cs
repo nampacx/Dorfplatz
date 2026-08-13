@@ -25,6 +25,12 @@ public class AppDbContext : DbContext
             e.Property(u => u.ProviderUserId).HasMaxLength(200);
             e.Property(u => u.Email).HasMaxLength(320);
             e.Property(u => u.DisplayName).HasMaxLength(200);
+            // No HasDefaultValue: EF would read the CLR default (Pending) as
+            // "unset" and write the database default instead. Same trap the
+            // EventPost.Category comment describes. New rows are Pending
+            // because the property initialiser says so.
+            e.Property(u => u.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(u => u.Status);
         });
 
         b.Entity<UserRole>(e =>

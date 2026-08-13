@@ -45,7 +45,11 @@ public class GoodsFunctions
     public async Task<IActionResult> List(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "goods")] HttpRequest req)
     {
+        // Dienstleistungen and Marktplatz are for members: an approved account is
+        // required to read them, unlike the events board.
         var viewer = await _users.GetOrCreateUserAsync(req);
+        if (viewer is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(viewer)) return HttpResults.PendingApproval();
 
         var items = await _db.Goods
             .Include(g => g.Author).Include(g => g.Images)
@@ -61,7 +65,11 @@ public class GoodsFunctions
     public async Task<IActionResult> Get(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "goods/{id:guid}")] HttpRequest req, Guid id)
     {
+        // Dienstleistungen and Marktplatz are for members: an approved account is
+        // required to read them, unlike the events board.
         var viewer = await _users.GetOrCreateUserAsync(req);
+        if (viewer is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(viewer)) return HttpResults.PendingApproval();
         var g = await _db.Goods.Include(x => x.Author).Include(x => x.Images)
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (g is null) return new NotFoundResult();
@@ -75,6 +83,7 @@ public class GoodsFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var body = await req.ReadJsonAsync<UploadRequest>();
         if (body is null || body.Files.Count == 0 || body.Files.Count > 8)
@@ -102,6 +111,7 @@ public class GoodsFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var body = await req.ReadJsonAsync<CreateGoodsRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description))
@@ -143,6 +153,7 @@ public class GoodsFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var g = await _db.Goods.Include(x => x.Author).Include(x => x.Images)
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
@@ -206,6 +217,7 @@ public class GoodsFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var g = await _db.Goods.Include(x => x.Images).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (g is null) return new NotFoundResult();

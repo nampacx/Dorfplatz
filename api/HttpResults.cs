@@ -14,4 +14,18 @@ public static class HttpResults
     /// 500 instead of "you may not do that".
     /// </summary>
     public static IActionResult Forbidden() => new StatusCodeResult(StatusCodes.Status403Forbidden);
+
+    /// <summary>
+    /// Signed in, but an admin has not let this account onto the board yet.
+    /// Carries a machine-readable code so the client can show the waiting
+    /// screen rather than a generic "not allowed", which would be misleading —
+    /// nothing is wrong, the request is simply early.
+    /// </summary>
+    public static IActionResult PendingApproval() =>
+        new ObjectResult(new
+        {
+            code = "pending_approval",
+            message = "Dein Zugang wurde noch nicht freigegeben.",
+        })
+        { StatusCode = StatusCodes.Status403Forbidden };
 }

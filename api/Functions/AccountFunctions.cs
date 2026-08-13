@@ -38,7 +38,7 @@ public class AccountFunctions
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
         var roles = CurrentUserService.EffectiveRoles(me).ToArray();
-        return new OkObjectResult(new MeDto(me.Id, me.Email, me.DisplayName, roles, me.ConsentedAt is not null));
+        return new OkObjectResult(new MeDto(me.Id, me.Email, me.DisplayName, roles, me.ConsentedAt is not null, me.Status.ToString()));
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public class AccountFunctions
         await _db.SaveChangesAsync();
 
         var roles = CurrentUserService.EffectiveRoles(me).ToArray();
-        return new OkObjectResult(new MeDto(me.Id, me.Email, me.DisplayName, roles, me.ConsentedAt is not null));
+        return new OkObjectResult(new MeDto(me.Id, me.Email, me.DisplayName, roles, me.ConsentedAt is not null, me.Status.ToString()));
     }
 
     [Function("Consent")]

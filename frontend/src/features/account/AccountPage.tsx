@@ -157,7 +157,7 @@ function ProfilePanel() {
 }
 
 export default function AccountPage() {
-  const { me, loading } = useAuth()
+  const { me, loading, isApproved } = useAuth()
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
@@ -191,8 +191,14 @@ export default function AccountPage() {
 
       <ProfilePanel />
 
-      <h2>Meine Events</h2>
-      <MyEvents />
+      {/* /events/mine needs an approved account, so a waiting member would
+          only get an error here. They have no events yet either way. */}
+      {isApproved && (
+        <>
+          <h2>Meine Events</h2>
+          <MyEvents />
+        </>
+      )}
 
       <ManagementLinks />
 

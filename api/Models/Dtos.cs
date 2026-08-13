@@ -50,11 +50,14 @@ public record MessageDto(Guid Id, Guid ConversationId, Guid SenderId, string Sen
     DateTimeOffset SentAt, bool IsMine);
 
 // ---- Admin ----
-public record AdminUserDto(Guid Id, string? Email, string? DisplayName, string[] Roles, DateTimeOffset CreatedAt);
+public record AdminUserDto(Guid Id, string? Email, string? DisplayName, string[] Roles,
+    string Status, DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt);
 public record UpdateRolesRequest(string Role, bool Grant);
+public record UpdateApprovalRequest(bool Approve);
 
 // ---- Account / me ----
-public record MeDto(Guid Id, string? Email, string? DisplayName, string[] Roles, bool HasConsented);
+public record MeDto(Guid Id, string? Email, string? DisplayName, string[] Roles, bool HasConsented,
+    string Status);
 
 /// <summary>Only the display name is editable; the email comes from the identity provider.</summary>
 public record UpdateProfileRequest(string DisplayName);

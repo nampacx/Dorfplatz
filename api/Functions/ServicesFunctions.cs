@@ -33,7 +33,11 @@ public class ServicesFunctions
     public async Task<IActionResult> List(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "services")] HttpRequest req)
     {
+        // Dienstleistungen and Marktplatz are for members: an approved account is
+        // required to read them, unlike the events board.
         var viewer = await _users.GetOrCreateUserAsync(req);
+        if (viewer is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(viewer)) return HttpResults.PendingApproval();
 
         var query = _db.Services.Include(s => s.Author)
             .Where(s => s.DeletedAt == null && s.Status == ServiceStatus.Active);
@@ -52,6 +56,7 @@ public class ServicesFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var body = await req.ReadJsonAsync<CreateServiceRequest>();
         if (body is null || string.IsNullOrWhiteSpace(body.Title) || string.IsNullOrWhiteSpace(body.Description)
@@ -80,6 +85,7 @@ public class ServicesFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var s = await _db.Services.Include(x => x.Author)
             .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
@@ -109,6 +115,7 @@ public class ServicesFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (s is null) return new NotFoundResult();
@@ -126,6 +133,7 @@ public class ServicesFunctions
     {
         var me = await _users.GetOrCreateUserAsync(req);
         if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
 
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null);
         if (s is null) return new NotFoundResult();

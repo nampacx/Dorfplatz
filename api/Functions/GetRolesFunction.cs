@@ -27,11 +27,54 @@ public class GetRolesFunction
         _logger = logger;
     }
 
+    public class ClaimPayload
+    {
+        [JsonPropertyName("typ")] public string? Typ { get; set; }
+        [JsonPropertyName("val")] public string? Val { get; set; }
+    }
+
     public class RolesPayload
     {
         [JsonPropertyName("identityProvider")] public string? IdentityProvider { get; set; }
         [JsonPropertyName("userId")] public string? UserId { get; set; }
         [JsonPropertyName("userDetails")] public string? UserDetails { get; set; }
+
+        /// <summary>
+        /// The provider's claims. This is the only place they are available:
+        /// the x-ms-client-principal header the other functions receive does
+        /// not carry a claims array, so a real name can be captured here or
+        /// nowhere.
+        /// </summary>
+        [JsonPropertyName("claims")] public List<ClaimPayload>? Claims { get; set; }
+    }
+
+    private const string SchemaName = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name";
+    private const string SchemaGivenName = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname";
+    private const string SchemaSurname = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname";
+
+    /// <summary>
+    /// The person's actual name, or null if the provider did not send one.
+    ///
+    /// Entra sends two claims called "name": the short one holds "Ellen
+    /// Contoso", the schema-suffixed one holds "ellen@contoso.com". Taking
+    /// whichever appears first would put email addresses back on the board,
+    /// so the short form is preferred and anything containing an @ is
+    /// rejected as an address rather than a name.
+    /// </summary>
+    private static string? ResolveDisplayName(RolesPayload payload)
+    {
+        string? Claim(string type) => payload.Claims?
+            .FirstOrDefault(c => string.Equals(c.Typ, type, StringComparison.OrdinalIgnoreCase)
+                                 && !string.IsNullOrWhiteSpace(c.Val))?.Val?.Trim();
+
+        var name = Claim("name") ?? Claim(SchemaName);
+        if (!string.IsNullOrWhiteSpace(name) && !name.Contains('@')) return name;
+
+        // Google and Entra both offer the parts even when the full name is absent.
+        var given = Claim("given_name") ?? Claim(SchemaGivenName);
+        var family = Claim("family_name") ?? Claim(SchemaSurname);
+        var joined = string.Join(' ', new[] { given, family }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        return string.IsNullOrWhiteSpace(joined) ? null : joined;
     }
 
     [Function("GetRoles")]
@@ -59,13 +102,16 @@ public class GetRolesFunction
             }
         }
 
+        var providerName = ResolveDisplayName(payload);
+
         if (user is null)
         {
             user = new AppUser
             {
                 ProviderUserId = payload.UserId,
                 Email = payload.UserDetails,
-                DisplayName = payload.UserDetails
+                // Falls back to the address only when the provider sent no name.
+                DisplayName = providerName ?? payload.UserDetails
             };
             _db.Users.Add(user);
         }
@@ -74,13 +120,34 @@ public class GetRolesFunction
             // Erased accounts get no elevated roles.
             return new OkObjectResult(new { roles = Array.Empty<string>() });
         }
+        else if (providerName is not null &&
+                 (string.IsNullOrWhiteSpace(user.DisplayName) || user.DisplayName == user.Email))
+        {
+            // Accounts created before names were captured show an email address
+            // next to their posts. Upgrade them on the next sign-in — but only
+            // while the stored name is still just the address, so a name the
+            // member chose on the account page is never overwritten.
+            user.DisplayName = providerName;
+        }
 
         await _db.SaveChangesAsync();
+
+        // Signing in creates the account; an admin decides whether it may be
+        // used. Until then the person is "authenticated" to Static Web Apps but
+        // holds no application role, so role-gated routes stay closed to them.
+        if (user.Status != AccessStatus.Approved)
+        {
+            _logger.LogInformation("No roles for {UserId}: access is {Status}", payload.UserId, user.Status);
+            return new OkObjectResult(new { roles = Array.Empty<string>() });
+        }
 
         var roles = new HashSet<string> { Roles.User };
         foreach (var r in user.Roles) roles.Add(r.Role);
 
-        _logger.LogInformation("Assigned roles {Roles} to {UserId}", string.Join(",", roles), payload.UserId);
+        // Whether a name arrived, not what it was: names are personal data and
+        // this log is not the place for them.
+        _logger.LogInformation("Assigned roles {Roles} to {UserId} (provider name: {HasName})",
+            string.Join(",", roles), payload.UserId, providerName is not null);
         return new OkObjectResult(new { roles });
     }
 }

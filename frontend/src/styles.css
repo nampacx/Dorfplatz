@@ -240,6 +240,16 @@ a { color: var(--blue); text-decoration: none; }
    equal-weight actions. */
 .stack-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
 .stack-actions .btn { width: 100%; }
+
+/* Approval queue. A list rather than table rows: each entry is a decision with
+   two actions, which does not want to be squeezed into a scrolling table on a
+   phone the way the member list is. */
+.approval-list { display: flex; flex-direction: column; gap: var(--sp-4); }
+.approval-item {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  padding-bottom: var(--sp-4); border-bottom: 1px dashed var(--line-strong);
+}
+.approval-item:last-child { padding-bottom: 0; border-bottom: none; }
 .brand {
   display: flex; align-items: center; gap: var(--sp-2);
   font-weight: 800; font-size: var(--fs-base); color: #fff;
@@ -758,6 +768,11 @@ body[data-chat-thread='open'] .consent {
     gap: 1.25rem; padding: var(--sp-4) var(--sp-5);
   }
   .consent .btn { width: auto; }
+
+  /* Decision and actions side by side once there is room. */
+  .approval-item { flex-direction: row; align-items: center; justify-content: space-between; }
+  .approval-item .stack-actions { flex-direction: row; flex-shrink: 0; }
+  .approval-item .stack-actions .btn { width: auto; }
 }
 
 /* =========================================================================

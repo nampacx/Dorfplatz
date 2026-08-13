@@ -7,6 +7,20 @@ public static class Roles
     public const string Admin = "admin";
 }
 
+/// <summary>
+/// Whether a member may use the board. Everyone who signs in gets an account,
+/// but an admin decides who becomes a member — the board is for one village.
+///
+/// Pending is first on purpose: it is the CLR default, so a newly constructed
+/// AppUser is pending without anyone having to remember to set it.
+/// </summary>
+public enum AccessStatus
+{
+    Pending,
+    Approved,
+    Rejected
+}
+
 public enum EventStatus
 {
     Pending,

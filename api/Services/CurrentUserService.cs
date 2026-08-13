@@ -4,6 +4,7 @@ using BulletinBoard.Api.Auth;
 using BulletinBoard.Api.Data;
 using BulletinBoard.Api.Data.Entities;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BulletinBoard.Api.Services;
@@ -61,7 +62,33 @@ public class CurrentUserService
         return user.DeletedAt is null ? user : null;
     }
 
-    /// <summary>Effective roles for a user: always "user", plus any granted moderator/admin rows.</summary>
+    /// <summary>
+    /// Signed in and let onto the board by an admin. Signing in creates an
+    /// account; it does not grant access.
+    /// </summary>
+    public static bool IsApproved(AppUser user) => user.Status == AccessStatus.Approved;
+
+    // Endpoints guard access with the pair
+    //
+    //     if (me is null) return new UnauthorizedResult();
+    //     if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
+    //
+    // rather than a combined helper. Signed-out and awaiting-approval need
+    // different responses — 401 sends a visitor to sign in, 403 tells a member
+    // their access is still being reviewed — and writing both checks out keeps
+    // `me` provably non-null afterwards, which a helper returning a nullable
+    // tuple cannot do without a null-forgiving operator at all 26 call sites.
+    //
+    // Endpoints a waiting member must still reach — account/me, consent, data
+    // export, erasure — deliberately omit the second check, or the waiting
+    // screen would have nothing to render and no way out of it.
+
+    /// <summary>
+    /// Roles this user has been granted: always "user", plus moderator/admin
+    /// rows. Deliberately says nothing about approval — the admin table shows
+    /// this, and it should report what was granted, not what is currently
+    /// usable. Approval is enforced at the gates instead.
+    /// </summary>
     public static IReadOnlyCollection<string> EffectiveRoles(AppUser user)
     {
         var roles = new HashSet<string> { Roles.User };
