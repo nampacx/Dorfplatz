@@ -3,11 +3,10 @@ import { useAuth } from '../auth/useAuth'
 import { useChatConnection } from '../chat/ChatConnection'
 
 /**
- * Primary navigation on phones: four fixed slots in the thumb zone.
+ * Primary navigation on phones: five fixed slots in the thumb zone.
  *
  * It replaces a top bar that wrapped to 4-5 rows and ate 143-210px of a 812px
- * viewport while sticky. Four slots is the ceiling — at 375px a fifth leaves
- * 75px per tab, which the German labels do not fit.
+ * viewport while sticky.
  *
  * Moderation and Admin therefore live on the account page rather than here: a
  * tab bar whose contents shift depending on who you are is disorienting, and
@@ -26,7 +25,8 @@ export default function TabBar() {
 
   return (
     <nav className="tabbar" aria-label="Hauptnavigation">
-      <NavLink to="/" end>Events</NavLink>
+      <NavLink to="/" end>Home</NavLink>
+      <NavLink to="/events">Events</NavLink>
       <NavLink to="/services">Dienste</NavLink>
       <NavLink to="/goods">Markt</NavLink>
       {me ? (

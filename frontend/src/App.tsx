@@ -3,6 +3,7 @@ import { useAuth } from './auth/useAuth'
 import { useChatConnection } from './chat/ChatConnection'
 import ConsentBanner from './components/ConsentBanner'
 import TabBar from './components/TabBar'
+import HomePage from './features/home/HomePage'
 import EventsPage from './features/events/EventsPage'
 import ModerationPage from './features/events/ModerationPage'
 import ServicesPage from './features/services/ServicesPage'
@@ -28,7 +29,8 @@ function AppHeader() {
         <span className="dot">●</span> Schwarzes&nbsp;Brett
       </span>
       <nav className="nav wide-only">
-        <NavLink to="/" end>Events</NavLink>
+        <NavLink to="/" end>Home</NavLink>
+        <NavLink to="/events">Events</NavLink>
         <NavLink to="/services">Dienstleistungen</NavLink>
         <NavLink to="/goods">Marktplatz</NavLink>
         {me && (
@@ -67,7 +69,8 @@ export default function App() {
       <AppHeader />
       <main className="container">
         <Routes>
-          <Route path="/" element={<EventsPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/events" element={<EventsPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/goods" element={<GoodsPage />} />
           <Route path="/chat" element={<ChatPage />} />
