@@ -10,10 +10,8 @@ import { useChatConnection } from '../chat/ChatConnection'
  *
  * Moderation and Admin therefore live on the account page rather than here: a
  * tab bar whose contents shift depending on who you are is disorienting, and
- * both are rare, deliberate destinations. Signed out, the Nachrichten slot
- * becomes Anmelden, so the slot count never changes and the layout never
- * shifts — and the one action we want from a signed-out visitor lands under
- * their thumb.
+ * both are rare, deliberate destinations. The fifth slot is always present but
+ * changes label: signed in it is Nachrichten, signed out it is Anmelden.
  *
  * Labels are shortened here only ("Dienste", "Markt"); the page headings keep
  * the full words. No icons: no generic glyph means "Dienstleistungen", and
