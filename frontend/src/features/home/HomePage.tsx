@@ -1,7 +1,7 @@
 const HOME_IMAGES = [
-  'https://github.com/user-attachments/assets/2fb0f6e0-ab02-4975-9a8f-b30da48922d0',
-  'https://github.com/user-attachments/assets/d96699e3-9a03-4d46-9e40-daa71b477e4b',
-  'https://github.com/user-attachments/assets/14866961-a512-43e2-a344-99cc8ea7eea3',
+  'https://www.blaubeuren.de/ceasy/resource/10351?&doCrop=1&width=800&height=450',
+  'https://www.blaubeuren.de/ceasy/resource/10356?&doCrop=1&width=800&height=450',
+  'https://www.blaubeuren.de/ceasy/resource/10357?&doCrop=1&width=800&height=450',
 ]
 
 export default function HomePage() {
