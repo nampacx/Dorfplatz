@@ -13,9 +13,10 @@ import { useChatConnection } from '../chat/ChatConnection'
  * both are rare, deliberate destinations. The fifth slot is always present but
  * changes label: signed in it is Nachrichten, signed out it is Anmelden.
  *
- * Labels are shortened here only ("Dienste", "Markt"); the page headings keep
- * the full words. No icons: no generic glyph means "Dienstleistungen", and
- * inventing one would cost a dependency the CSP forbids anyway.
+ * Labels are shortened here only ("Dienste", "Markt", "Chat"); the
+ * page headings keep the full words. No icons: no generic glyph means
+ * "Dienstleistungen", and inventing one would cost a dependency the CSP
+ * forbids anyway.
  */
 export default function TabBar() {
   const { me } = useAuth()
@@ -29,7 +30,7 @@ export default function TabBar() {
       <NavLink to="/goods">Markt</NavLink>
       {me ? (
         <NavLink to="/chat">
-          Nachrichten
+          Chat
           {unreadTotal > 0 && (
             <span className="tab-badge" aria-label={`${unreadTotal} ungelesene Nachrichten`}>
               {unreadTotal > 99 ? '99+' : unreadTotal}

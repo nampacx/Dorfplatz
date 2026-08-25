@@ -35,7 +35,7 @@ function AppHeader() {
         <NavLink to="/goods">Marktplatz</NavLink>
         {me && (
           <NavLink to="/chat">
-            Nachrichten
+            Chat
             {unreadTotal > 0 && (
               <span className="nav-badge" aria-label={`${unreadTotal} ungelesene Nachrichten`}>
                 {unreadTotal > 99 ? '99+' : unreadTotal}

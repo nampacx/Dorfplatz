@@ -35,7 +35,7 @@ export default function HomePage() {
             <img
               src={url}
               alt={`Eindruck aus der Gemeinde ${index + 1}`}
-              style={{ width: '100%', display: 'block', borderRadius: '12px', objectFit: 'cover' }}
+              style={{ width: '100%', display: 'block', borderRadius: '12px', objectFit: 'cover', aspectRatio: '16 / 9' }}
             />
           </article>
         ))}
