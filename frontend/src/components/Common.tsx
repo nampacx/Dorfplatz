@@ -49,7 +49,7 @@ export function PendingGate() {
         Angemeldet als {me?.email ?? me?.displayName ?? 'unbekannt'}
       </p>
       <div className="stack-actions" style={{ maxWidth: 320, margin: '0 auto' }}>
-        <Link className="btn" to="/">Zu den Events</Link>
+        <Link className="btn" to="/events">Zu den Events</Link>
         <a className="btn secondary" href="/.auth/logout?post_logout_redirect_uri=/">
           Mit einem anderen Konto anmelden
         </a>

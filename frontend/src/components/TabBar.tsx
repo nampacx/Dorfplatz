@@ -3,22 +3,20 @@ import { useAuth } from '../auth/useAuth'
 import { useChatConnection } from '../chat/ChatConnection'
 
 /**
- * Primary navigation on phones: four fixed slots in the thumb zone.
+ * Primary navigation on phones: five fixed slots in the thumb zone.
  *
  * It replaces a top bar that wrapped to 4-5 rows and ate 143-210px of a 812px
- * viewport while sticky. Four slots is the ceiling — at 375px a fifth leaves
- * 75px per tab, which the German labels do not fit.
+ * viewport while sticky.
  *
  * Moderation and Admin therefore live on the account page rather than here: a
  * tab bar whose contents shift depending on who you are is disorienting, and
- * both are rare, deliberate destinations. Signed out, the Nachrichten slot
- * becomes Anmelden, so the slot count never changes and the layout never
- * shifts — and the one action we want from a signed-out visitor lands under
- * their thumb.
+ * both are rare, deliberate destinations. The fifth slot is always present but
+ * changes label: signed in it is Nachrichten, signed out it is Anmelden.
  *
- * Labels are shortened here only ("Dienste", "Markt"); the page headings keep
- * the full words. No icons: no generic glyph means "Dienstleistungen", and
- * inventing one would cost a dependency the CSP forbids anyway.
+ * Labels are shortened here only ("Dienste", "Markt", "Chat"); the
+ * page headings keep the full words. No icons: no generic glyph means
+ * "Dienstleistungen", and inventing one would cost a dependency the CSP
+ * forbids anyway.
  */
 export default function TabBar() {
   const { me } = useAuth()
@@ -26,12 +24,13 @@ export default function TabBar() {
 
   return (
     <nav className="tabbar" aria-label="Hauptnavigation">
-      <NavLink to="/" end>Events</NavLink>
+      <NavLink to="/" end>Home</NavLink>
+      <NavLink to="/events">Events</NavLink>
       <NavLink to="/services">Dienste</NavLink>
       <NavLink to="/goods">Markt</NavLink>
       {me ? (
         <NavLink to="/chat">
-          Nachrichten
+          Chat
           {unreadTotal > 0 && (
             <span className="tab-badge" aria-label={`${unreadTotal} ungelesene Nachrichten`}>
               {unreadTotal > 99 ? '99+' : unreadTotal}
