@@ -10,6 +10,7 @@ A community bulletin board ("schwarzes Brett") web app for a Verein / neighbourh
 - **Direct chat** — members message each other in real time (e.g. to answer a listing).
 - **Roles** — `user` (default), `moderator` (assigned by admins, moderates events), `admin` (moderator powers + can promote users to moderator).
 - **GDPR** — consent capture, data export (portability), erasure/anonymisation, secrets in Key Vault, no PII in URLs.
+- **German legal pages** — Impressum (§ 5 DDG) and Datenschutzerklärung, linked from the footer on every route. Operator details live in one file: `frontend/src/config/legal.ts` — see [docs/IMPRESSUM.md](docs/IMPRESSUM.md).
 
 ## Architecture
 
@@ -32,7 +33,7 @@ frontend/   React + Vite SPA + staticwebapp.config.json
 api/         Azure Functions (.NET 8 isolated)
 infra/       Bicep modules + main.bicep
 .github/     GitHub Actions (infra, frontend, api, PR validation)
-docs/        Privacy, GDPR, architecture, local dev
+docs/        Privacy, Impressum, GDPR, architecture, local dev
 ```
 
 ## Quick start (local)

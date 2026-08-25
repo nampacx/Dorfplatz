@@ -18,7 +18,7 @@ final deployment reviewed by someone responsible for data protection.
 
 | Right | Implementation |
 | --- | --- |
-| **Transparency** (Art. 13/14) | Privacy page (`/privacy`) + consent banner |
+| **Transparency** (Art. 13/14) | Privacy page (`/privacy`) + consent banner; controller identity from `frontend/src/config/legal.ts` |
 | **Consent** (Art. 6/7) | Banner records `ConsentedAt`; `/api/account/consent` |
 | **Access & portability** (Art. 15/20) | `/api/account/export` returns all user data as JSON |
 | **Erasure** (Art. 17) | `/api/account/delete` anonymises profile, removes images, tombstones messages, withdraws listings, strips roles, sets `DeletedAt` |
@@ -37,6 +37,7 @@ final deployment reviewed by someone responsible for data protection.
 ## Still to do before go-live
 
 - Add a Data Processing Agreement with Microsoft (Azure) — covered by the Microsoft DPA.
-- Fill in the controller identity and contact in `PRIVACY.md` / `/privacy`.
+- Fill in the controller identity and contact in `frontend/src/config/legal.ts` — it feeds both
+  `/privacy` and `/impressum`. See [IMPRESSUM.md](IMPRESSUM.md).
 - Define and document a concrete retention policy for inactive accounts and old listings.
 - Decide whether image EXIF/location metadata should be stripped on upload.

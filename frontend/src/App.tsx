@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/useAuth'
 import { useChatConnection } from './chat/ChatConnection'
 import ConsentBanner from './components/ConsentBanner'
+import SiteFooter from './components/SiteFooter'
 import TabBar from './components/TabBar'
 import HomePage from './features/home/HomePage'
 import EventsPage from './features/events/EventsPage'
@@ -11,8 +12,9 @@ import GoodsPage from './features/goods/GoodsPage'
 import ChatPage from './features/chat/ChatPage'
 import AdminPage from './features/admin/AdminPage'
 import AccountPage from './features/account/AccountPage'
-import PrivacyPage from './features/account/PrivacyPage'
 import LoginPage from './features/account/LoginPage'
+import ImpressumPage from './features/legal/ImpressumPage'
+import PrivacyPage from './features/legal/PrivacyPage'
 
 /**
  * Slim header. Below 900px it carries only the brand and a link to the
@@ -77,10 +79,12 @@ export default function App() {
           <Route path="/moderation" element={<ModerationPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/impressum" element={<ImpressumPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
       </main>
+      <SiteFooter />
       <TabBar />
       <ConsentBanner />
     </div>
