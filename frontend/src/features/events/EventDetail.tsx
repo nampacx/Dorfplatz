@@ -2,12 +2,10 @@ import { useState, type ReactNode } from 'react'
 import { api } from '../../api/client'
 import DetailModal from '../../components/DetailModal'
 import type { EventPost } from '../../types'
+import { downloadEventIcs } from './ics'
+import { STATUS_LABELS } from './labels'
 
-export const STATUS_LABELS: Record<EventPost['status'], string> = {
-  Pending: 'In Prüfung',
-  Published: 'Veröffentlicht',
-  Rejected: 'Abgelehnt',
-}
+export { STATUS_LABELS }
 
 export function fmtEventDate(iso: string | null) {
   if (!iso) return null
@@ -103,6 +101,9 @@ export default function EventDetail({
       ) : (
         <div className="detail-actions">
           {actions}
+          <button className="btn secondary" onClick={() => downloadEventIcs(item)}>
+            Zum Kalender hinzufügen
+          </button>
           {canManage && onEdit && (
             <button className="btn" onClick={onEdit}>
               {item.status === 'Rejected' ? 'Überarbeiten und erneut einreichen' : 'Bearbeiten'}

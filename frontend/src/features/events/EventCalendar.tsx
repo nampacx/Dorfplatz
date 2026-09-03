@@ -79,6 +79,14 @@ export default function EventCalendar({ events, onSelect }: Props) {
   const todayKey = dayKey(today)
   const selectedEvents = selectedDay ? (byDay.get(selectedDay) ?? []) : []
 
+  /**
+   * The list is filtered to upcoming events unless a moderator opts into the
+   * archive, so a past month is legitimately empty. Say so, otherwise the
+   * empty grid reads as a loading bug.
+   */
+  const monthIsPast = cells[cells.length - 1].date < new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const monthHasEvents = cells.some((c) => c.inMonth && byDay.has(c.key))
+
   function shiftMonth(delta: number) {
     setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
     setSelectedDay(null)
@@ -169,6 +177,10 @@ export default function EventCalendar({ events, onSelect }: Props) {
           )
         })}
       </div>
+
+      {monthIsPast && !monthHasEvents && (
+        <p className="cal-hint">Vergangene Termine werden nicht angezeigt.</p>
+      )}
 
       {selectedDay && (
         <div className="cal-daylist">
