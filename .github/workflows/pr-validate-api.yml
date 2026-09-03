@@ -1,0 +1,29 @@
+name: Validate API
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+      - '.github/workflows/pr-validate-api.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet restore api/BulletinBoard.Api.csproj
+      - run: dotnet build api/BulletinBoard.Api.csproj -c Release --no-restore
+      - name: Test
+        run: |
+          if find . -name '*Tests*.csproj' -o -name '*.Tests.csproj' | grep -q .; then
+            dotnet test -c Release
+          else
+            echo "No test projects found; skipping."
+          fi

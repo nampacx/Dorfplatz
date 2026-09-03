@@ -58,14 +58,16 @@ Open http://localhost:4280 and sign in via the mock auth screen.
 
 ## Deploy
 
-Fully automated with Bicep + scripts + one GitHub Actions pipeline. Two commands to go live:
+Fully automated with Bicep + scripts + path-scoped GitHub Actions pipelines:
 
 ```bash
 # one-time: deploy identity, RBAC, resource group, and all repo secrets
 ./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -r <owner>/<repo> -e you@example.com
 
-# provision + deploy infra, API and frontend (or just push to main)
-gh workflow run deploy.yml -r <owner>/<repo>
+# provision infrastructure, then deploy API/frontend independently
+gh workflow run deploy-infra.yml -r <owner>/<repo>
+gh workflow run deploy-api.yml -r <owner>/<repo>
+gh workflow run deploy-frontend.yml -r <owner>/<repo>
 ```
 
 Then `./scripts/setup-entra-auth.sh -r <owner>/<repo>` to wire Microsoft sign-in. Prefer no

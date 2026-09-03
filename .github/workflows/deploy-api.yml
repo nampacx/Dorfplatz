@@ -1,0 +1,67 @@
+name: Deploy API
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        default: dev
+        type: choice
+        options: [ dev, prod ]
+  push:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+      - '.github/workflows/deploy-api.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+
+jobs:
+  api:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish
+        run: dotnet publish api/BulletinBoard.Api.csproj -c Release -o ./publish
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Find Function App
+        id: resource
+        uses: azure/cli@v3
+        with:
+          inlineScript: |
+            set -euo pipefail
+            name=$(az functionapp list \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --query "[?tags.application=='BulletinBoard' && tags.environment=='${{ env.ENVIRONMENT }}'].name | [0]" \
+              -o tsv)
+            test -n "$name" || { echo "No ${ENVIRONMENT} Function App found in resource group." >&2; exit 1; }
+            echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.resource.outputs.name }}
+          package: ./publish
+        # DB migrations are applied automatically on cold start (DbInitializer).

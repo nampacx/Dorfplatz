@@ -1,0 +1,79 @@
+name: Deploy frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        default: dev
+        type: choice
+        options: [ dev, prod ]
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-frontend-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+
+jobs:
+  frontend:
+    name: Deploy frontend
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Find Static Web App
+        id: resource
+        uses: azure/cli@v3
+        with:
+          inlineScript: |
+            set -euo pipefail
+            name=$(az staticwebapp list \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --query "[?tags.application=='BulletinBoard' && tags.environment=='${{ env.ENVIRONMENT }}'].name | [0]" \
+              -o tsv)
+            test -n "$name" || { echo "No ${ENVIRONMENT} Static Web App found in resource group." >&2; exit 1; }
+            echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch deployment token
+        id: token
+        uses: azure/cli@v3
+        with:
+          inlineScript: |
+            set -euo pipefail
+            token=$(az staticwebapp secrets list \
+              --name "${{ steps.resource.outputs.name }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --query "properties.apiKey" -o tsv)
+            test -n "$token" || { echo "No Static Web App deployment token returned." >&2; exit 1; }
+            echo "::add-mask::$token"
+            echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Build & deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: 'frontend'
+          output_location: 'dist'
+        env:
+          VITE_API_BASE: '/api'
