@@ -46,7 +46,15 @@ Cross-cutting: User-assigned Managed Identity, Key Vault (secrets), Application 
 | --- | --- |
 | `user` | view everything, submit in all sections, chat |
 | `moderator` | + review/approve/reject events |
-| `admin` | + promote users to moderator/admin |
+| `admin` | + promote users to moderator/admin, approve/reject/suspend member access |
+
+### Member access
+
+An account is `Pending` until an admin lets it onto the board. `Approved` access can later be
+taken away (`Suspended`) and given back, and both of those decisions require a reason, which is
+recorded in the audit log (`member.suspend` / `member.reinstate`) and shown to the member.
+`Rejected` is the different case of an account that was never let in. Everything is decided
+through `POST /members/{id}/approval` with `{ decision, reason }`.
 
 ## Data model
 

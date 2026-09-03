@@ -1,7 +1,10 @@
 export type Role = 'user' | 'moderator' | 'admin'
 
-/** Whether an admin has let this account onto the board. */
-export type AccessStatus = 'Pending' | 'Approved' | 'Rejected'
+/**
+ * Whether an admin has let this account onto the board. 'Rejected' was never
+ * let in; 'Suspended' had access and an admin took it away again.
+ */
+export type AccessStatus = 'Pending' | 'Approved' | 'Rejected' | 'Suspended'
 
 export interface Me {
   id: string
@@ -10,6 +13,8 @@ export interface Me {
   roles: Role[]
   hasConsented: boolean
   status: AccessStatus
+  /** Why access was suspended, when it was. Shown to the member. */
+  statusReason: string | null
 }
 
 /** Fixed list, mirrored by the EventCategory enum in the API. */
@@ -107,4 +112,8 @@ export interface AdminUser {
   status: AccessStatus
   createdAt: string
   decidedAt: string | null
+  statusReason: string | null
 }
+
+/** What an admin can do to a member's access. Mirrors AccessDecisions in the API. */
+export type AccessDecision = 'approve' | 'reject' | 'suspend'

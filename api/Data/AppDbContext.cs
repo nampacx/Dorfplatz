@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
             // EventPost.Category comment describes. New rows are Pending
             // because the property initialiser says so.
             e.Property(u => u.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(u => u.StatusReason).HasMaxLength(500);
             e.HasIndex(u => u.Status);
         });
 

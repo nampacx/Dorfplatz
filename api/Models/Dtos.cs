@@ -51,13 +51,27 @@ public record MessageDto(Guid Id, Guid ConversationId, Guid SenderId, string Sen
 
 // ---- Admin ----
 public record AdminUserDto(Guid Id, string? Email, string? DisplayName, string[] Roles,
-    string Status, DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt);
+    string Status, DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt, string? StatusReason);
 public record UpdateRolesRequest(string Role, bool Grant);
-public record UpdateApprovalRequest(bool Approve);
+
+/// <summary>
+/// An access decision. <paramref name="Decision"/> is one of the
+/// <see cref="AccessDecisions"/> values; <paramref name="Reason"/> is required
+/// for suspend and for the reinstatement that lifts it, so there is always an
+/// explanation on record for taking access away and for giving it back.
+/// </summary>
+public record UpdateApprovalRequest(string Decision, string? Reason);
+
+public static class AccessDecisions
+{
+    public const string Approve = "approve";
+    public const string Reject = "reject";
+    public const string Suspend = "suspend";
+}
 
 // ---- Account / me ----
 public record MeDto(Guid Id, string? Email, string? DisplayName, string[] Roles, bool HasConsented,
-    string Status);
+    string Status, string? StatusReason);
 
 /// <summary>Only the display name is editable; the email comes from the identity provider.</summary>
 public record UpdateProfileRequest(string DisplayName);
