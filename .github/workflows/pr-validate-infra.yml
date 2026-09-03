@@ -1,0 +1,19 @@
+name: Validate infrastructure
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/pr-validate-infra.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bicep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint Bicep
+        run: az bicep build --file infra/main.bicep

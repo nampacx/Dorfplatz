@@ -22,20 +22,25 @@ git remote, so `-r` / `-Repo` is optional (pass it only to target a different re
 ./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -e you@example.com
 #   PowerShell: ./scripts/bootstrap-github-oidc.ps1 -SubscriptionId <sub> -SeedAdminEmail you@example.com
 
-# 2. Provision + deploy (infra -> API -> frontend), fully self-wiring.
-gh workflow run deploy.yml        # or just push to main
+# 2. Provision infrastructure (or just push infra changes to main).
+gh workflow run deploy-infra.yml
 
-# 3. Configure Microsoft sign-in (after step 2 created the SWA host).
+# 3. Deploy the API or frontend independently when their paths change.
+gh workflow run deploy-api.yml
+gh workflow run deploy-frontend.yml
+
+# 4. Configure Microsoft sign-in (after step 2 created the SWA host).
 ./scripts/setup-entra-auth.sh
 #   PowerShell: ./scripts/setup-entra-auth.ps1
 
-# 4. Configure Google sign-in (manual client creation, then apply).
+# 5. Configure Google sign-in (manual client creation, then apply).
 ./scripts/set-google-auth.sh -i <clientId> -x <clientSecret>
 ```
 
-After step 1, `deploy.yml` needs **no** hand-set secrets: it reads Bicep outputs for the
-Function App and SWA names, fetches the SWA deploy token at runtime, and relies on the API
-applying EF Core migrations on start-up.
+After step 1, the deployment workflows need **no** hand-set resource names: they find the
+Function App and SWA by their environment tags, fetch the SWA deploy token at runtime, and
+rely on the API applying EF Core migrations on start-up. Pushes only run the workflow for the
+changed area.
 
 ### B) Local — one command, no CI
 

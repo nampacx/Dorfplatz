@@ -65,31 +65,32 @@ content, tombstones messages, removes images and anonymises the profile.
 ## Deployment
 
 Provisioned by Bicep ([`infra/main.bicep`](../infra/main.bicep)) and fully automated by
-scripts + one GitHub Actions pipeline. See [scripts/README.md](../scripts/README.md) for the
-step-by-step. The short version:
+scripts + path-scoped GitHub Actions pipelines. See [scripts/README.md](../scripts/README.md)
+for the step-by-step. The short version:
 
 ```bash
 # 1. one-time: deploy identity + RBAC + resource group + all repo secrets/vars
 ./scripts/bootstrap-github-oidc.sh -s <sub> -r <owner>/<repo> -e you@example.com
-# 2. provision + deploy everything
-gh workflow run deploy.yml -r <owner>/<repo>
+# 2. provision infrastructure, then deploy application areas independently
+gh workflow run deploy-infra.yml -r <owner>/<repo>
+gh workflow run deploy-api.yml -r <owner>/<repo>
+gh workflow run deploy-frontend.yml -r <owner>/<repo>
 # 3. wire up Microsoft (and then Google) sign-in
 ./scripts/setup-entra-auth.sh -r <owner>/<repo>
 ```
 
-### The pipeline — [`deploy.yml`](../.github/workflows/deploy.yml)
+### The pipelines
+Deployment is split into three path-scoped workflows:
 
-One workflow, three jobs, **self-wiring**:
+- [`deploy-infra.yml`](../.github/workflows/deploy-infra.yml) runs for `infra/**` changes.
+- [`deploy-api.yml`](../.github/workflows/deploy-api.yml) runs for `api/**` changes.
+- [`deploy-frontend.yml`](../.github/workflows/deploy-frontend.yml) runs for `frontend/**` changes.
 
-1. **infra** — deploys the Bicep and emits the Function App + SWA names as job outputs.
-2. **api** — publishes the Function App (name comes from the infra outputs). No migration
-   step: the API applies EF Core migrations on cold start (`DbInitializer.MigrateAsync`), so
-   the DB never needs to accept connections from the CI runner.
-3. **frontend** — fetches the SWA deploy token at runtime (`az staticwebapp secrets list`) and
-   uploads the built SPA.
+The API and frontend workflows resolve the existing resource name from Azure using the
+environment tags created by Bicep, so they do not need to wait for an infrastructure job.
 
-[`pr-validate.yml`](../.github/workflows/pr-validate.yml) builds/tests frontend, API and Bicep
-on every PR.
+PR validation is split the same way into `pr-validate-infra.yml`, `pr-validate-api.yml`, and
+`pr-validate-frontend.yml`; each runs only for changes in its area.
 
 ### Configuration (all set by `bootstrap-github-oidc`)
 

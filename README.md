@@ -120,22 +120,26 @@ More detail, including EF Core migration commands and role setup, is in
 
 ## Deployment
 
-Azure resources are provisioned with Bicep and deployed through one GitHub Actions
-workflow. The recommended CI/CD path is:
+Azure resources are provisioned with Bicep and deployed through path-scoped GitHub
+Actions workflows. The recommended CI/CD path is:
 
 ```bash
 # One-time: create the OIDC identity, RBAC, resource group, and GitHub settings.
 ./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -e you@example.com
 
-# Provision infrastructure, publish the API, and build/deploy the frontend.
-gh workflow run deploy.yml
+# Provision infrastructure, then deploy the API and frontend independently.
+gh workflow run deploy-infra.yml
+gh workflow run deploy-api.yml
+gh workflow run deploy-frontend.yml
 ```
 
-The workflow can also run automatically for changes to `infra/`, `api/`,
-`frontend/`, or the deployment workflow on `main`. It provisions the infrastructure
-first, publishes the API, and then uploads the SPA using the Static Web Apps
-deployment token fetched at runtime. The API applies EF Core migrations on cold
-start, so CI does not need a separate database migration connection.
+The workflows can also run automatically: `deploy-infra.yml` for changes to `infra/`,
+`deploy-api.yml` for changes to `api/`, and `deploy-frontend.yml` for changes to
+`frontend/` on `main`. The API and frontend deployments resolve their existing Azure
+resources by the environment tags created by Bicep, so infrastructure must be
+provisioned at least once before they can run independently. The API applies EF Core
+migrations on cold start, so CI does not need a separate database migration
+connection.
 
 After the first deployment, configure Microsoft sign-in with
 `setup-entra-auth` and configure Google sign-in with a manually created Google
@@ -167,8 +171,9 @@ To contribute:
    or data-protection implications in the pull request.
 
 Please keep changes focused, do not commit secrets or local settings, and preserve
-the purpose-bound nature of member messages. Pull requests are validated by
-`.github/workflows/pr-validate.yml`.
+the purpose-bound nature of member messages. Pull requests are validated by the
+path-scoped `pr-validate-infra.yml`, `pr-validate-api.yml`, and
+`pr-validate-frontend.yml` workflows.
 
 ## Further documentation
 
