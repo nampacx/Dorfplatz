@@ -286,12 +286,14 @@ a { color: var(--blue); text-decoration: none; }
 
 .container {
   max-width: 1100px; width: 100%; margin: 0 auto;
-  padding: var(--sp-5) var(--sp-4) 5rem;
+  padding: var(--sp-5) var(--sp-4) var(--sp-6);
   padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
   padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
-  /* Clears the fixed tab bar. The consent banner adds its own clearance in
-     its own rule, so the two do not both reserve the same space. */
-  padding-bottom: calc(var(--nav-h) + var(--sp-5) + env(safe-area-inset-bottom));
+  /* The tab-bar clearance moved to .site-footer, which is now the last thing
+     in the flow — reserving it here as well would open a 56px gap above the
+     footer. The consent banner keeps its own offset in its own rule, so no
+     two elements reserve the same space. */
+  padding-bottom: var(--sp-6);
 }
 
 .page-head { margin-bottom: var(--sp-5); }
@@ -485,6 +487,67 @@ a { color: var(--blue); text-decoration: none; }
 /* Yellow marks the selected filter, matching the active nav item. */
 .chip.active { background: var(--signal); border-color: var(--signal); color: var(--enamel-deep); font-weight: 700; }
 
+/* ---- Site footer -------------------------------------------------------
+   Present on every route because § 5 DDG wants the Impressum "leicht
+   erkennbar, unmittelbar erreichbar und ständig verfügbar" — from any page,
+   under that exact word.
+
+   In the flow rather than fixed: a second fixed bar above the tab bar would
+   spend screen height the tab bar was introduced to reclaim. margin-top:auto
+   pins it to the bottom on short pages, since .app is a full-height column.
+   ----------------------------------------------------------------------- */
+.site-footer {
+  margin-top: auto;
+  background: var(--enamel);
+  border-top: 3px solid var(--signal);
+  color: #93a2c8;
+  font-size: var(--fs-sm);
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0 var(--sp-5);
+  padding: var(--sp-2) var(--sp-4);
+  padding-left: calc(var(--sp-4) + env(safe-area-inset-left));
+  padding-right: calc(var(--sp-4) + env(safe-area-inset-right));
+  /* Clears the fixed tab bar: the footer is the last element in the flow. */
+  padding-bottom: calc(var(--sp-2) + var(--nav-h) + env(safe-area-inset-bottom));
+}
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 0 var(--sp-4); }
+/* Full tap height on the link itself — the footer's own padding stays small
+   so the bar does not grow into a third navigation row. */
+.site-footer a {
+  display: inline-flex; align-items: center; min-height: var(--tap);
+  color: #dbe4f7; font-weight: 600;
+}
+.site-footer a.active { color: #fff; }
+.site-footer p { margin: 0; }
+
+/* ---- Legal texts (Impressum, Datenschutzerklärung) ---------------------- */
+.legal-page { max-width: 760px; margin: 0 auto; }
+.legal-page h1 {
+  font-size: var(--fs-2xl); font-weight: 800;
+  letter-spacing: -0.02em; line-height: var(--lh-tight);
+  margin: 0 0 var(--sp-4);
+}
+.legal-page h3 {
+  font-size: var(--fs-base); font-weight: 700;
+  margin: var(--sp-5) 0 var(--sp-2);
+}
+.legal-page p, .legal-page li { max-width: 68ch; }
+.legal-page code {
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow);
+  background: var(--blue-tint); color: var(--blue);
+  padding: 0.1em 0.35em; border-radius: 2px;
+}
+/* A missing mandatory entry must not read as ordinary blank text — this is
+   what stops an unfilled Impressum from going live unnoticed. */
+.legal-todo {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: var(--fs-eyebrow);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  background: var(--signal-tint); color: var(--signal-deep);
+  border: 1px dashed var(--signal-deep); border-radius: 2px;
+  padding: 0.05em 0.4em;
+}
+
 /* The view switch is a filter of a different kind, so it sits apart from the
    category chips: pushed to the end of the toolbar where there is room. The
    auto margin is a no-op when the moderator toggle above already claimed the
@@ -654,6 +717,10 @@ th {
 /* The tab bar would otherwise sit under the text input, and its 56px are
    worth more to the composer while a thread is open. */
 body[data-chat-thread='open'] .tabbar { display: none; }
+/* The footer goes with it. While a thread is open .app is pinned to exactly
+   one screen (below), so a footer in the flow would push the composer up off
+   the bottom edge. The legal links come back the moment the thread closes. */
+body[data-chat-thread='open'] .site-footer { display: none; }
 /* Pin the app to exactly one screen and let flex hand the leftover space to
    the thread, so the composer sits on the bottom edge whatever the header
    measures and the page itself never scrolls. */
@@ -956,7 +1023,8 @@ body[data-chat-thread='open'] .consent {
   .topbar .wide-only { display: inline-flex; }
   .topbar .nav.wide-only { display: flex; }
   .tabbar { display: none; }
-  .container { padding-bottom: 5rem; }
+  /* No tab bar to clear from here up. */
+  .site-footer { padding-bottom: var(--sp-2); }
   .consent { bottom: 0; }
 }
 
@@ -964,7 +1032,7 @@ body[data-chat-thread='open'] .consent {
    >= 1200px — comfort only.
    ========================================================================= */
 @media (min-width: 1200px) {
-  .container { padding: var(--sp-6) var(--sp-6) 5rem; }
+  .container { padding: var(--sp-6); }
 }
 
 /* A touch screen keeps full-size targets however wide it is: the 36px above
