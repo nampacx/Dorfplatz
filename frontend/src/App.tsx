@@ -28,7 +28,7 @@ function AppHeader() {
   return (
     <header className="topbar">
       <span className="brand">
-        <span className="dot">●</span> Schwarzes&nbsp;Brett
+        <span className="dot">●</span> Dorfplatz
       </span>
       <nav className="nav wide-only">
         <NavLink to="/" end>Home</NavLink>

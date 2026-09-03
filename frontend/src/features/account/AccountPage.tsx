@@ -170,7 +170,7 @@ export default function AccountPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'my-bulletinboard-data.json'
+    a.download = 'my-dorfplatz-data.json'
     a.click()
     URL.revokeObjectURL(url)
   }

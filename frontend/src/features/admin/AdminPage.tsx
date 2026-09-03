@@ -250,8 +250,8 @@ function UserTable() {
           title={pending.decision === 'suspend' ? 'Zugang entziehen' : 'Zugang wiederherstellen'}
           intro={
             pending.decision === 'suspend'
-              ? `${pending.user.displayName ?? pending.user.email ?? 'Dieses Mitglied'} kann das schwarze Brett danach nicht mehr nutzen. Die Begründung wird dem Mitglied angezeigt und protokolliert.`
-              : `${pending.user.displayName ?? pending.user.email ?? 'Dieses Mitglied'} kann das schwarze Brett danach wieder nutzen. Die Begründung wird protokolliert.`
+              ? `${pending.user.displayName ?? pending.user.email ?? 'Dieses Mitglied'} kann den Dorfplatz danach nicht mehr nutzen. Die Begründung wird dem Mitglied angezeigt und protokolliert.`
+              : `${pending.user.displayName ?? pending.user.email ?? 'Dieses Mitglied'} kann den Dorfplatz danach wieder nutzen. Die Begründung wird protokolliert.`
           }
           label="Begründung"
           confirmLabel={pending.decision === 'suspend' ? 'Zugang entziehen' : 'Wiederherstellen'}

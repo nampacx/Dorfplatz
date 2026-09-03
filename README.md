@@ -1,6 +1,6 @@
-# BulletinBoard
+# Dorfplatz
 
-A community bulletin board ("schwarzes Brett") web app for a Verein / neighbourhood community.
+A community hub ("Dorfplatz") web app for a Verein / neighbourhood community.
 
 ## Features
 

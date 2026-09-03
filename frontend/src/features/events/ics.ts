@@ -70,11 +70,11 @@ export function buildEventIcs(item: EventPost, now = new Date()): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//BulletinBoard//Events//DE',
+    'PRODID:-//Dorfplatz//Events//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${item.id}@bulletinboard`,
+    `UID:${item.id}@dorfplatz`,
     `DTSTAMP:${utcStamp(now)}`,
     `SUMMARY:${escapeText(item.title)}`,
   ]
@@ -94,7 +94,7 @@ export function buildEventIcs(item: EventPost, now = new Date()): string {
 
   if (item.location) lines.push(`LOCATION:${escapeText(item.location)}`)
   lines.push(`CATEGORIES:${escapeText(item.category)}`)
-  lines.push(`ORGANIZER;CN=${escapeText(item.authorName)}:MAILTO:noreply@bulletinboard.invalid`)
+  lines.push(`ORGANIZER;CN=${escapeText(item.authorName)}:MAILTO:noreply@dorfplatz.invalid`)
   lines.push(`DESCRIPTION:${escapeText(buildDescription(item))}`)
   if (item.status !== 'Published') lines.push('STATUS:TENTATIVE')
   else lines.push('STATUS:CONFIRMED')

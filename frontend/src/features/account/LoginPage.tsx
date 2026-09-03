@@ -19,7 +19,7 @@ export default function LoginPage() {
   return (
     <div className="login">
       <p className="u-label">Anmeldung</p>
-      <h1>Willkommen am Schwarzen Brett</h1>
+      <h1>Willkommen auf dem Dorfplatz</h1>
       <p className="login-lead">
         Melde dich an, um Events einzureichen, Anzeigen aufzugeben und anderen
         Mitgliedern zu schreiben. Ein bestehendes Microsoft- oder Google-Konto genügt —

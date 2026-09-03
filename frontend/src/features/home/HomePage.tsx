@@ -8,7 +8,7 @@ export default function HomePage() {
   return (
     <>
       <div className="page-head">
-        <h1>Willkommen am Schwarzen Brett</h1>
+        <h1>Willkommen auf dem Dorfplatz</h1>
         <p>
           Hier findest du alle wichtigen Informationen rund um unsere Gemeinschaft: aktuelle
           Neuigkeiten, kommende Veranstaltungen, Dienstleistungen in der Nachbarschaft und Angebote
