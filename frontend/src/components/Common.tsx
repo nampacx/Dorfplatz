@@ -48,7 +48,7 @@ export function PendingGate() {
         {suspended
           ? 'Ein Administrator hat den Zugang zu diesem Konto vorübergehend gesperrt.'
           : rejected
-            ? 'Dieses Konto wurde nicht für das schwarze Brett freigegeben.'
+            ? 'Dieses Konto wurde nicht für den Dorfplatz freigegeben.'
             : 'Ein Administrator muss dein Konto freigeben, bevor du Dienstleistungen, den Marktplatz und Nachrichten nutzen kannst. Events kannst du schon jetzt lesen.'}
       </p>
       {suspended && me?.statusReason && (

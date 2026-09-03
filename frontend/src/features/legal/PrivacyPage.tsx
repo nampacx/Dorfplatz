@@ -26,7 +26,7 @@ export default function PrivacyPage() {
     <div className="panel legal-page">
       <h1>Datenschutzerklärung</h1>
       <p style={{ color: 'var(--ink-soft)' }}>
-        Diese Vorlage fasst zusammen, wie das Schwarze Brett personenbezogene Daten verarbeitet.
+        Diese Vorlage fasst zusammen, wie der Dorfplatz personenbezogene Daten verarbeitet.
         Bitte an die konkreten Gegebenheiten des Vereins anpassen und rechtlich prüfen lassen.
         {stand && <> Stand: {stand}.</>}
       </p>

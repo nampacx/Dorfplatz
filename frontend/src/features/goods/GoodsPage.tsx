@@ -298,7 +298,7 @@ function GoodsBoard() {
       <div className="page-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1>Marktplatz</h1>
-          <p>Gebrauchtes verkaufen und finden — wie am schwarzen Brett.</p>
+          <p>Gebrauchtes verkaufen und finden — mitten auf dem Dorfplatz.</p>
         </div>
         {me && <button className="btn" onClick={() => setShowForm(true)}>+ Artikel anbieten</button>}
       </div>
