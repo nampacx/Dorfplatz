@@ -7,7 +7,8 @@ A community hub ("Dorfplatz") web app for a Verein / neighbourhood community.
 - **Events & News** — members submit events (party, Vereins-Event); **moderators** approve or reject (with reason) before they go public.
 - **Services / Dienstleistungen** — "ich suche" (seeking) and "ich biete" (offering) posts.
 - **Goods** — eBay-Kleinanzeigen-style classifieds with description, images and a price.
-- **Direct chat** — members message each other in real time (e.g. to answer a listing).
+- **Direct messages** — members exchange contact details and practical information in real time
+  for services and classifieds; this is not intended as a general-purpose chat platform.
 - **Roles** — `user` (default), `moderator` (assigned by admins, moderates events), `admin` (moderator powers + can promote users to moderator).
 - **GDPR** — consent capture, data export (portability), erasure/anonymisation, secrets in Key Vault, no PII in URLs.
 - **German legal pages** — Impressum (§ 5 DDG) and Datenschutzerklärung, linked from the footer on every route. Operator details live in one file: `frontend/src/config/legal.ts` — see [docs/IMPRESSUM.md](docs/IMPRESSUM.md).

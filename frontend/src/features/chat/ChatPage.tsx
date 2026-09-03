@@ -108,7 +108,16 @@ function Chat() {
     <>
       {/* The thread wants the whole screen on a phone; the page title would
           cost a fifth of it to say something the thread header already says. */}
-      {!threadOnPhone && <div className="page-head"><h1>Nachrichten</h1></div>}
+      {!threadOnPhone && (
+        <div className="page-head">
+          <h1>Nachrichten</h1>
+          <p>
+            Tausche hier Kontaktdaten und wichtige Einzelheiten zu Dienstleistungen oder
+            Marktplatz-Anzeigen aus. Die Nachrichtenfunktion dient konkreten Absprachen und ist
+            nicht als allgemeine Chat-Plattform gedacht.
+          </p>
+        </div>
+      )}
       {conversations.length === 0 ? (
         <div className="empty">Noch keine Unterhaltungen. Schreibe jemandem über ein Angebot oder eine Anzeige.</div>
       ) : (
