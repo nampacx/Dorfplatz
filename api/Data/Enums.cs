@@ -13,12 +13,18 @@ public static class Roles
 ///
 /// Pending is first on purpose: it is the CLR default, so a newly constructed
 /// AppUser is pending without anyone having to remember to set it.
+///
+/// Rejected and Suspended both mean "no access", but they are kept apart
+/// because they say different things: Rejected is a member who was never let
+/// in, Suspended is one whose access an admin took away again. Only the latter
+/// requires a reason, and the two read differently to the person affected.
 /// </summary>
 public enum AccessStatus
 {
     Pending,
     Approved,
-    Rejected
+    Rejected,
+    Suspended
 }
 
 public enum EventStatus
