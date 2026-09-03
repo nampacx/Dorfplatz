@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
 import { EmptyState, ErrorNotice, Loading, useAsync } from '../../components/Common'
+import EventCalendar from './EventCalendar'
 import EventDetail from './EventDetail'
 import EventFormModal from './EventFormModal'
 import { EVENT_CATEGORIES, type EventCategory, type EventPost } from '../../types'
@@ -9,6 +10,19 @@ import { EVENT_CATEGORIES, type EventCategory, type EventPost } from '../../type
 function fmtDate(iso: string | null) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+type ViewMode = 'cards' | 'calendar'
+
+const VIEW_KEY = 'events:view'
+
+/** Remembered per browser, so the chosen view survives a reload. */
+function readStoredView(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'calendar' ? 'calendar' : 'cards'
+  } catch {
+    return 'cards'
+  }
 }
 
 /** Matches the API cutoff: a Termin counts as upcoming for the whole of its day. */
@@ -25,10 +39,21 @@ export default function EventsPage() {
   const [editing, setEditing] = useState<EventPost | null>(null)
   const [selected, setSelected] = useState<EventPost | null>(null)
   const [category, setCategory] = useState<EventCategory | 'all'>('all')
+  const [view, setView] = useState<ViewMode>(readStoredView)
   const [includePast, setIncludePast] = useState(false)
   // Only moderators may request the archive; the flag must never leak into a
   // member's query, otherwise the API just ignores it and the UI lies.
   const showPast = isModerator && includePast
+
+  function switchView(next: ViewMode) {
+    setView(next)
+    try {
+      localStorage.setItem(VIEW_KEY, next)
+    } catch {
+      /* Private mode or a full quota: the view still switches for this visit. */
+    }
+  }
+
   const { data, loading, error, reload } = useAsync(() => {
     const params = new URLSearchParams()
     if (category !== 'all') params.set('category', category)
@@ -70,6 +95,22 @@ export default function EventsPage() {
             <span>Vergangene Events</span>
           </label>
         )}
+        <div className="view-switch" role="group" aria-label="Ansicht wählen">
+          <button
+            className={`chip ${view === 'cards' ? 'active' : ''}`}
+            aria-pressed={view === 'cards'}
+            onClick={() => switchView('cards')}
+          >
+            Karten
+          </button>
+          <button
+            className={`chip ${view === 'calendar' ? 'active' : ''}`}
+            aria-pressed={view === 'calendar'}
+            onClick={() => switchView('calendar')}
+          >
+            Kalender
+          </button>
+        </div>
       </div>
 
       {error && <ErrorNotice message={error} />}
@@ -85,6 +126,8 @@ export default function EventsPage() {
               ? `Keine Events in der Kategorie ${category}.`
               : `Keine anstehenden Events in der Kategorie ${category}.`}
         </EmptyState>
+      ) : view === 'calendar' ? (
+        <EventCalendar events={data} onSelect={setSelected} />
       ) : (
         <div className="grid">
           {data.map((e) => (
