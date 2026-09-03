@@ -1,73 +1,180 @@
 # Dorfplatz
 
-A community hub ("Dorfplatz") web app for a Verein / neighbourhood community.
+Dorfplatz is a digital meeting place for the village of Asch: a trusted, respectful
+community space for sharing useful information, making local services visible, and
+improving services and cooperation in the village.
 
-## Features
+The platform was initiated by the **Lebenswert** group in Asch. It is intended to
+strengthen the village and help neighbours inform one another, find practical help,
+and exchange goods locally. Everyone using Dorfplatz is expected to behave
+**respectfully, kindly, and fairly**. A considerate, appreciative atmosphere is a
+basic principle of the project.
 
-- **Events & News** — members submit events (party, Vereins-Event); **moderators** approve or reject (with reason) before they go public.
-- **Services / Dienstleistungen** — "ich suche" (seeking) and "ich biete" (offering) posts.
-- **Goods** — eBay-Kleinanzeigen-style classifieds with description, images and a price.
-- **Direct messages** — members exchange contact details and practical information in real time
-  for services and classifieds; this is not intended as a general-purpose chat platform.
-- **Roles** — `user` (default), `moderator` (assigned by admins, moderates events), `admin` (moderator powers + can promote users to moderator).
-- **GDPR** — consent capture, data export (portability), erasure/anonymisation, secrets in Key Vault, no PII in URLs.
-- **German legal pages** — Impressum (§ 5 DDG) and Datenschutzerklärung, linked from the footer on every route. Operator details live in one file: `frontend/src/config/legal.ts` — see [docs/IMPRESSUM.md](docs/IMPRESSUM.md).
+## What Dorfplatz does
+
+- **Events and news** — Members can submit village announcements, meetings,
+  Vereinsfeste, and other events. Submissions enter a pending queue; moderators
+  approve or reject them, and can provide a reason, before an item is published.
+  Event categories include `Verwaltung`, `Vereine`, `Kirchen`, `Stadt`, and
+  `Sonstiges`.
+- **Services / Dienstleistungen** — Members can publish either `ich suche`
+  (seeking help) or `ich biete` (offering help) posts. Service posts can be edited,
+  deleted, or marked closed.
+- **Goods / Marktplatz** — Members can list items to buy, sell, or give away with a
+  description, price, condition, category, location, and images. Listings can be
+  marked sold or withdrawn.
+- **Member messages** — A member can start a conversation from a service or
+  classified listing to exchange contact details and practical details needed for
+  that specific exchange. Messages are real-time and persisted, but this is **not
+  a general-purpose chat platform**.
+- **Member access and roles** — A newly signed-in account is pending until an
+  administrator approves it for the village board. Access can later be suspended
+  or reinstated with a recorded reason. The `user` role can view and submit board
+  content and use member messages; `moderator` adds event review; `admin` adds
+  member approval, suspension, and role management.
+- **Account and legal features** — Members can edit their display name, record
+  consent, export their data as JSON, or delete their account. Account deletion
+  anonymises the profile, removes authored listings and images, and tombstones
+  messages. The app includes German `Impressum` (§ 5 DDG) and
+  `Datenschutzerklärung` pages, linked from the footer on every route.
+
+The GDPR implementation is a technical aid, not legal advice. Before a production
+launch, complete the controller details and retention decisions documented in
+[docs/GDPR.md](docs/GDPR.md) and [docs/IMPRESSUM.md](docs/IMPRESSUM.md).
 
 ## Architecture
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React + Vite + TypeScript on **Azure Static Web Apps** (Standard) |
-| Auth | SWA built-in auth: **Microsoft Entra ID** (personal MS accounts) + **Google**; roles via `/api/GetRoles` |
-| Backend | **Azure Functions** (.NET 8 isolated), linked to SWA as "bring your own" |
-| Database | **Azure Database for PostgreSQL** Flexible Server via **EF Core / Npgsql** |
-| Files | **Azure Blob Storage** (listing images, SAS uploads) |
-| Chat | **Azure SignalR Service** (serverless mode) |
-| Secrets / identity | **Key Vault** + **Managed Identity**; **Application Insights** for telemetry |
+| Frontend | React, Vite, and TypeScript SPA on Azure Static Web Apps (Standard) |
+| Authentication | Static Web Apps built-in auth with Microsoft Entra ID (including personal Microsoft accounts) and Google |
+| Roles | `/api/GetRoles` resolves database roles; protected API operations re-check authorization server-side |
+| Backend | Azure Functions, .NET 8 isolated worker, linked to Static Web Apps as a separate “bring your own” Function App |
+| Database | Azure Database for PostgreSQL Flexible Server through EF Core and Npgsql |
+| Images | Private Azure Blob Storage with short-lived SAS upload URLs |
+| Real-time messages | Azure SignalR Service in serverless mode |
+| Secrets and telemetry | Azure Key Vault, user-assigned Managed Identity, and Application Insights |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full picture and [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md) to run it locally.
+The frontend uses the same-origin `/api` path. The API stores events, services,
+goods, member accounts, conversations, and audit records in PostgreSQL. EF Core
+migrations are applied by the API during startup. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow, authorization, and
+deployment decisions.
 
 ## Repository layout
 
-```
-frontend/   React + Vite SPA + staticwebapp.config.json
-api/         Azure Functions (.NET 8 isolated)
-infra/       Bicep modules + main.bicep
-.github/     GitHub Actions (infra, frontend, api, PR validation)
-docs/        Privacy, Impressum, GDPR, architecture, local dev
+```text
+frontend/   React + Vite SPA and Static Web Apps configuration
+api/        Azure Functions .NET 8 isolated API, EF Core model, and migrations
+infra/      Bicep modules and the main Azure deployment template
+scripts/    Bash and PowerShell deployment/bootstrap helpers
+docs/       Architecture, local development, GDPR, privacy, and legal guidance
+.github/    GitHub Actions for deployment and pull-request validation
 ```
 
-## Quick start (local)
+## Local development
+
+### Prerequisites
+
+- [.NET SDK 8](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
+- [Node.js 20 or later](https://nodejs.org/)
+- [Docker](https://www.docker.com/)
+- Static Web Apps CLI: `npm install -g @azure/static-web-apps-cli`
+
+Start the local PostgreSQL database and Azurite Blob emulator:
 
 ```bash
-# 1. Start local Postgres + Azurite
 docker compose up -d
-
-# 2. Backend (Azure Functions)
-cd api && cp local.settings.json.example local.settings.json && func start
-
-# 3. Frontend
-cd frontend && cp .env.example .env && npm install && npm run dev
-
-# 4. Tie together with the SWA CLI (emulates auth, roles, /api proxy)
-npm install -g @azure/static-web-apps-cli
-swa start http://localhost:5173 --api-location http://localhost:7071
 ```
 
-Open http://localhost:4280 and sign in via the mock auth screen.
-
-## Deploy
-
-Fully automated with Bicep + scripts + one GitHub Actions pipeline. Two commands to go live:
+Configure the API and choose the first local administrator:
 
 ```bash
-# one-time: deploy identity, RBAC, resource group, and all repo secrets
-./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -r <owner>/<repo> -e you@example.com
-
-# provision + deploy infra, API and frontend (or just push to main)
-gh workflow run deploy.yml -r <owner>/<repo>
+cd api
+cp local.settings.json.example local.settings.json
+# Set Seed__AdminEmail to the email used by your local sign-in.
 ```
 
-Then `./scripts/setup-entra-auth.sh -r <owner>/<repo>` to wire Microsoft sign-in. Prefer no
-CI? `./scripts/deploy.ps1 -SubscriptionId <sub>` does the whole thing locally. Full details in
-[scripts/README.md](scripts/README.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#deployment).
+From the repository root, start the complete local stack through the Static Web
+Apps CLI:
+
+```bash
+swa start
+```
+
+This reads [`swa-cli.config.json`](swa-cli.config.json), starts Vite and the
+Functions host, emulates `/.auth/*` and the `/api` proxy, and serves the app at
+**http://localhost:4280**. The mock sign-in screen lets you choose a username and
+roles. Database migrations run automatically when the API starts.
+
+For individual processes:
+
+```bash
+cd frontend && npm install && npm run dev
+cd api && func start
+```
+
+More detail, including EF Core migration commands and role setup, is in
+[docs/LOCAL_DEV.md](docs/LOCAL_DEV.md).
+
+## Deployment
+
+Azure resources are provisioned with Bicep and deployed through one GitHub Actions
+workflow. The recommended CI/CD path is:
+
+```bash
+# One-time: create the OIDC identity, RBAC, resource group, and GitHub settings.
+./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -e you@example.com
+
+# Provision infrastructure, publish the API, and build/deploy the frontend.
+gh workflow run deploy.yml
+```
+
+The workflow can also run automatically for changes to `infra/`, `api/`,
+`frontend/`, or the deployment workflow on `main`. It provisions the infrastructure
+first, publishes the API, and then uploads the SPA using the Static Web Apps
+deployment token fetched at runtime. The API applies EF Core migrations on cold
+start, so CI does not need a separate database migration connection.
+
+After the first deployment, configure Microsoft sign-in with
+`setup-entra-auth` and configure Google sign-in with a manually created Google
+OAuth client and `set-google-auth`. A local, non-CI deployment is also available:
+
+```bash
+./scripts/deploy.sh -s <subscriptionId> -e you@example.com
+```
+
+PowerShell equivalents are provided beside the Bash scripts. See
+[scripts/README.md](scripts/README.md) and the deployment section of
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for prerequisites, configuration,
+and teardown.
+
+## Contributing
+
+Dorfplatz is an **open-source project**, and everyone is welcome to contribute.
+Useful contributions include product improvements, accessibility and UX work,
+documentation, translations, tests, and privacy or security review.
+
+To contribute:
+
+1. Fork the repository and create a focused branch.
+2. Run the local stack and make the smallest coherent change.
+3. Run the relevant checks before opening a pull request:
+   `cd frontend && npm run lint && npm run build`, and
+   `dotnet build api/BulletinBoard.Api.csproj`.
+4. Explain the user-facing behavior, implementation details, and any deployment
+   or data-protection implications in the pull request.
+
+Please keep changes focused, do not commit secrets or local settings, and preserve
+the purpose-bound nature of member messages. Pull requests are validated by
+`.github/workflows/pr-validate.yml`.
+
+## Further documentation
+
+- [Architecture and deployment](docs/ARCHITECTURE.md)
+- [Local development](docs/LOCAL_DEV.md)
+- [GDPR implementation notes](docs/GDPR.md)
+- [Privacy policy guidance](docs/PRIVACY.md)
+- [Impressum guidance](docs/IMPRESSUM.md)
+- [Deployment scripts](scripts/README.md)
