@@ -11,16 +11,31 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+/** Matches the API cutoff: a Termin counts as upcoming for the whole of its day. */
+function isPast(iso: string | null) {
+  if (!iso) return false
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  return new Date(iso) < startOfToday
+}
+
 export default function EventsPage() {
   const { me, isApproved, isModerator } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EventPost | null>(null)
   const [selected, setSelected] = useState<EventPost | null>(null)
   const [category, setCategory] = useState<EventCategory | 'all'>('all')
-  const { data, loading, error, reload } = useAsync(
-    () => api.get<EventPost[]>(`/events${category === 'all' ? '' : `?category=${category}`}`),
-    [category],
-  )
+  const [includePast, setIncludePast] = useState(false)
+  // Only moderators may request the archive; the flag must never leak into a
+  // member's query, otherwise the API just ignores it and the UI lies.
+  const showPast = isModerator && includePast
+  const { data, loading, error, reload } = useAsync(() => {
+    const params = new URLSearchParams()
+    if (category !== 'all') params.set('category', category)
+    if (showPast) params.set('includePast', 'true')
+    const qs = params.toString()
+    return api.get<EventPost[]>(`/events${qs ? `?${qs}` : ''}`)
+  }, [category, showPast])
 
   return (
     <>
@@ -44,6 +59,17 @@ export default function EventsPage() {
             {c}
           </button>
         ))}
+        {isModerator && (
+          <label className="switch" title="Auch Events anzeigen, deren Termin bereits vorbei ist">
+            <input
+              type="checkbox"
+              checked={includePast}
+              onChange={(ev) => setIncludePast(ev.target.checked)}
+            />
+            <span className="switch-track" aria-hidden="true" />
+            <span>Vergangene Events</span>
+          </label>
+        )}
       </div>
 
       {error && <ErrorNotice message={error} />}
@@ -52,8 +78,12 @@ export default function EventsPage() {
       ) : !data?.length ? (
         <EmptyState>
           {category === 'all'
-            ? 'Noch keine veröffentlichten Events. Sei die/der Erste!'
-            : `Keine Events in der Kategorie ${category}.`}
+            ? showPast
+              ? 'Noch keine veröffentlichten Events. Sei die/der Erste!'
+              : 'Keine anstehenden Events. Vergangene Termine werden nicht angezeigt.'
+            : showPast
+              ? `Keine Events in der Kategorie ${category}.`
+              : `Keine anstehenden Events in der Kategorie ${category}.`}
         </EmptyState>
       ) : (
         <div className="grid">
@@ -73,6 +103,7 @@ export default function EventsPage() {
               }}
             >
               <span className="badge category">{e.category}</span>
+              {isPast(e.eventDate) && <span className="badge past">Vorbei</span>}
               <h3>{e.title}</h3>
               <div className="desc desc-clamp">{e.description}</div>
               <div className="meta">
