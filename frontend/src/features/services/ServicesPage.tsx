@@ -181,7 +181,7 @@ export default function ServicesPage() {
 }
 
 function ServicesBoard() {
-  const { me } = useAuth()
+  const { me, isModerator } = useAuth()
   const [filter, setFilter] = useState<Filter>('all')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<ServicePost | null>(null)
@@ -236,7 +236,7 @@ function ServicesBoard() {
               <div className="desc desc-clamp">{s.description}</div>
               <div className="meta">
                 <span>{s.category}</span>
-                <span>{s.authorName}</span>
+                {isModerator && <span>{s.authorName}</span>}
               </div>
             </article>
           ))}
