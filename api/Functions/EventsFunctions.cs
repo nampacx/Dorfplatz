@@ -32,7 +32,11 @@ public class EventsFunctions
         e.Status.ToString(), e.RejectionReason, e.Author?.DisplayName ?? "Unknown", e.CreatedAt,
         MayEdit(e, viewer));
 
-    /// <summary>Public: published events only.</summary>
+    /// <summary>
+    /// Public: published events only, and by default only those whose Termin has not
+    /// passed yet. Moderators may opt into the archive with ?includePast=true.
+    /// Events without a Termin have nothing to expire, so they always stay visible.
+    /// </summary>
     [Function("ListEvents")]
     public async Task<IActionResult> List(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "events")] HttpRequest req)
@@ -42,6 +46,15 @@ public class EventsFunctions
         var query = _db.Events
             .Include(e => e.Author)
             .Where(e => e.DeletedAt == null && e.Status == EventStatus.Published);
+
+        var includePast = bool.TryParse(req.Query["includePast"].ToString(), out var flag) && flag
+            && viewer is not null && CurrentUserService.IsModerator(viewer);
+        if (!includePast)
+        {
+            // A Termin counts as upcoming for the whole of its day.
+            var cutoff = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+            query = query.Where(e => e.EventDate == null || e.EventDate >= cutoff);
+        }
 
         if (Enum.TryParse<EventCategory>(req.Query["category"].ToString(), ignoreCase: true, out var category))
             query = query.Where(e => e.Category == category);

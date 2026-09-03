@@ -31,6 +31,14 @@ public class AppUser
     public DateTimeOffset? DecidedAt { get; set; }
     public Guid? DecidedByUserId { get; set; }
 
+    /// <summary>
+    /// Why the current <see cref="Status"/> was set, when an admin had to give a
+    /// reason (suspension and the reinstatement that follows it). This is the
+    /// latest reason only — the full history is in the audit log — and it is
+    /// shown to the member, so it must read as an explanation, not a note.
+    /// </summary>
+    public string? StatusReason { get; set; }
+
     public ICollection<UserRole> Roles { get; set; } = new List<UserRole>();
 }
 

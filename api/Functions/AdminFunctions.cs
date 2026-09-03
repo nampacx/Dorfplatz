@@ -48,7 +48,7 @@ public class AdminFunctions
         var dtos = users.Select(u => new AdminUserDto(
             u.Id, u.Email, u.DisplayName,
             CurrentUserService.EffectiveRoles(u).ToArray(),
-            u.Status.ToString(), u.CreatedAt, u.DecidedAt));
+            u.Status.ToString(), u.CreatedAt, u.DecidedAt, u.StatusReason));
         return new OkObjectResult(dtos);
     }
 
@@ -105,15 +105,22 @@ public class AdminFunctions
         await _db.Entry(target).Collection(t => t.Roles).LoadAsync();
         var roles = CurrentUserService.EffectiveRoles(target).ToArray();
         return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName, roles,
-            target.Status.ToString(), target.CreatedAt, target.DecidedAt));
+            target.Status.ToString(), target.CreatedAt, target.DecidedAt, target.StatusReason));
     }
 
     /// <summary>
-    /// Let a member onto the board, or turn them away. Admin only; audit-logged.
+    /// Let a member onto the board, turn them away, or take access away again.
+    /// Admin only; audit-logged.
     ///
     /// Rejecting is not a punishment, it is how the queue gets emptied: a
     /// rejected account can still sign in and see that it was not approved,
     /// and an admin can approve it later if that was a mistake.
+    ///
+    /// Suspending is the opposite direction — it takes access away from someone
+    /// who had it. Because that is a decision someone may have to answer for
+    /// later, it requires a reason, and so does lifting it again. Both reasons
+    /// land in the audit log; the latest one is kept on the user so the member
+    /// can be told why.
     /// </summary>
     [Function("UpdateUserApproval")]
     public async Task<IActionResult> UpdateApproval(
@@ -128,25 +135,65 @@ public class AdminFunctions
         var body = await req.ReadJsonAsync<UpdateApprovalRequest>();
         if (body is null) return new BadRequestObjectResult("A decision is required.");
 
+        var decision = body.Decision?.Trim().ToLowerInvariant();
+        var status = decision switch
+        {
+            AccessDecisions.Approve => AccessStatus.Approved,
+            AccessDecisions.Reject => AccessStatus.Rejected,
+            AccessDecisions.Suspend => AccessStatus.Suspended,
+            _ => (AccessStatus?)null
+        };
+        if (status is null)
+            return new BadRequestObjectResult("Decision must be 'approve', 'reject' or 'suspend'.");
+
         var target = await _db.Users.Include(u => u.Roles)
             .FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
         if (target is null) return new NotFoundResult();
 
         // An admin who revoked their own access would lock themselves out of
         // the page that could undo it.
-        if (target.Id == me.Id && !body.Approve)
+        if (target.Id == me.Id && status != AccessStatus.Approved)
             return new BadRequestObjectResult("You cannot withdraw your own access.");
 
-        target.Status = body.Approve ? AccessStatus.Approved : AccessStatus.Rejected;
+        // A reason is demanded for taking access away, and for giving it back
+        // after it was taken away — those are the two moves someone might later
+        // have to justify. Approving a newcomer or clearing the queue does not
+        // need one, and asking for it there would only teach admins to type "ok".
+        var reason = body.Reason?.Trim();
+        var isReinstatement = status == AccessStatus.Approved && target.Status == AccessStatus.Suspended;
+        var needsReason = status == AccessStatus.Suspended || isReinstatement;
+
+        if (needsReason && string.IsNullOrWhiteSpace(reason))
+            return new BadRequestObjectResult("A reason is required for this decision.");
+        if (reason is { Length: > 500 })
+            return new BadRequestObjectResult("The reason must be at most 500 characters.");
+
+        // Suspending someone who was never approved says something that is not
+        // true — there is no access to take away. Reject is the move there.
+        if (status == AccessStatus.Suspended && target.Status != AccessStatus.Approved)
+            return new BadRequestObjectResult("Only an approved member can be suspended.");
+
+        var previous = target.Status;
+        target.Status = status.Value;
         target.DecidedAt = DateTimeOffset.UtcNow;
         target.DecidedByUserId = me.Id;
-        _audit.Record(body.Approve ? "member.approve" : "member.reject", me.Id, "user", target.Id,
-            new { status = target.Status.ToString() });
+        // Cleared on decisions that carry no reason, so a stale suspension note
+        // cannot outlive the suspension and be shown to a readmitted member.
+        target.StatusReason = needsReason ? reason : null;
+
+        var action = status switch
+        {
+            AccessStatus.Suspended => "member.suspend",
+            AccessStatus.Rejected => "member.reject",
+            _ => isReinstatement ? "member.reinstate" : "member.approve"
+        };
+        _audit.Record(action, me.Id, "user", target.Id,
+            new { from = previous.ToString(), to = target.Status.ToString(), reason });
 
         await _db.SaveChangesAsync();
 
         return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName,
             CurrentUserService.EffectiveRoles(target).ToArray(),
-            target.Status.ToString(), target.CreatedAt, target.DecidedAt));
+            target.Status.ToString(), target.CreatedAt, target.DecidedAt, target.StatusReason));
     }
 }

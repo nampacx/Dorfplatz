@@ -28,23 +28,34 @@ export function LoginGate({ message }: { message?: string }) {
 }
 
 /**
- * Shown to someone who has signed in but has not been let onto the board yet.
+ * Shown to someone who has signed in but may not use the board — not let on
+ * yet, turned away, or suspended.
  *
  * It names the account, because the most common confusion is having signed in
  * with the wrong one of several Microsoft accounts, and offers the way out —
- * signing out — rather than leaving them on a dead end.
+ * signing out — rather than leaving them on a dead end. A suspended member is
+ * shown the reason an admin gave, so they know what happened without having to
+ * ask.
  */
 export function PendingGate() {
   const { me } = useAuth()
+  const suspended = me?.status === 'Suspended'
   const rejected = me?.status === 'Rejected'
   return (
     <div className="gate">
-      <h2>{rejected ? 'Kein Zugang' : 'Dein Zugang wird geprüft'}</h2>
+      <h2>{suspended ? 'Zugang gesperrt' : rejected ? 'Kein Zugang' : 'Dein Zugang wird geprüft'}</h2>
       <p>
-        {rejected
-          ? 'Dieses Konto wurde nicht für das schwarze Brett freigegeben.'
-          : 'Ein Administrator muss dein Konto freigeben, bevor du Dienstleistungen, den Marktplatz und Nachrichten nutzen kannst. Events kannst du schon jetzt lesen.'}
+        {suspended
+          ? 'Ein Administrator hat den Zugang zu diesem Konto vorübergehend gesperrt.'
+          : rejected
+            ? 'Dieses Konto wurde nicht für das schwarze Brett freigegeben.'
+            : 'Ein Administrator muss dein Konto freigeben, bevor du Dienstleistungen, den Marktplatz und Nachrichten nutzen kannst. Events kannst du schon jetzt lesen.'}
       </p>
+      {suspended && me?.statusReason && (
+        <div className="notice error" style={{ marginBottom: '1rem' }}>
+          <strong>Begründung:</strong> {me.statusReason}
+        </div>
+      )}
       <p className="u-label" style={{ marginBottom: '1.5rem' }}>
         Angemeldet als {me?.email ?? me?.displayName ?? 'unbekannt'}
       </p>
