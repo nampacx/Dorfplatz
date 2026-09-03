@@ -426,14 +426,15 @@ a { color: var(--blue); text-decoration: none; }
 .badge.past      { background: var(--red-tint); color: var(--red); margin-left: var(--sp-1); }
 
 /* ---- Buttons -----------------------------------------------------------
-   Primary is gray on blue text: the signal colour marks the one action.
+   Primary is Blaubeuren blue with white text. Gray is reserved for
+   secondary status and attention states.
    ----------------------------------------------------------------------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1);
   min-height: var(--control-h);
   border: 1px solid transparent; cursor: pointer; font-family: inherit;
   font-size: var(--fs-sm); font-weight: 700; padding: var(--sp-2) var(--sp-4);
-  border-radius: var(--radius); background: var(--signal); color: var(--enamel-deep);
+  border-radius: var(--radius); background: var(--blue); color: #fff;
   transition: filter 0.12s ease, transform 0.12s ease;
   /* Skips the 300ms double-tap-zoom delay on touch. */
   touch-action: manipulation;
@@ -809,6 +810,7 @@ body[data-chat-thread='open'] .consent {
 
 .providers { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.75rem; flex-wrap: wrap; }
 .btn.provider { padding: 0.7rem 1.4rem; font-size: var(--fs-base); min-width: 220px; }
+.btn.provider.secondary { background: var(--card); color: var(--blue); border-color: var(--blue); }
 
 .login {
   max-width: 520px; margin: var(--sp-6) auto; text-align: center;
