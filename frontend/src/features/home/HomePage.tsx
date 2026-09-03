@@ -38,7 +38,9 @@ export default function HomePage() {
           <strong>Marktplatz:</strong> Dinge aus der Nachbarschaft kaufen, verkaufen oder verschenken.
         </p>
         <p>
-          <strong>Chat:</strong> Direkt und unkompliziert mit anderen Mitgliedern in Kontakt treten.
+          <strong>Nachrichten:</strong> Kontaktdaten und weitere wichtige Einzelheiten zu
+          Dienstleistungen oder Marktplatz-Anzeigen direkt mit anderen Mitgliedern austauschen.
+          Die Funktion ist für konkrete Absprachen gedacht, nicht als allgemeine Chat-Plattform.
         </p>
       </section>
 
