@@ -287,7 +287,7 @@ export default function GoodsPage() {
 }
 
 function GoodsBoard() {
-  const { me } = useAuth()
+  const { me, isModerator } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<GoodsPost | null>(null)
   const [selected, setSelected] = useState<GoodsPost | null>(null)
@@ -341,7 +341,7 @@ function GoodsBoard() {
               <div className="desc desc-clamp">{g.description}</div>
               <div className="meta">
                 <span className="badge role">{CONDITION_LABELS[g.condition] ?? g.condition}</span>
-                <span>{[g.location, g.authorName].filter(Boolean).join(' · ')}</span>
+                <span>{[g.location, isModerator ? g.authorName : null].filter(Boolean).join(' · ')}</span>
               </div>
             </article>
           ))}

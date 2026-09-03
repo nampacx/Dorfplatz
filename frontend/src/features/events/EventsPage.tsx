@@ -12,7 +12,7 @@ function fmtDate(iso: string | null) {
 }
 
 export default function EventsPage() {
-  const { me, isApproved } = useAuth()
+  const { me, isApproved, isModerator } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<EventPost | null>(null)
   const [selected, setSelected] = useState<EventPost | null>(null)
@@ -77,7 +77,7 @@ export default function EventsPage() {
               <div className="desc desc-clamp">{e.description}</div>
               <div className="meta">
                 <span>{[fmtDate(e.eventDate), e.location].filter(Boolean).join(' · ')}</span>
-                <span>{e.authorName}</span>
+                {isModerator && <span>{e.authorName}</span>}
               </div>
             </article>
           ))}
