@@ -1,8 +1,8 @@
 /* =========================================================================
    Dorfplatz — visual system
-   Palette: Blaubeuren blue + white + neutral gray. Blue carries structure
-   and "official/posted"; gray is the signal colour for actions, markers and
-   things awaiting attention.
+   Palette: green + petrol + white. Green carries primary structure and
+   "official/posted"; petrol is the secondary signal colour for actions,
+   markers and things awaiting attention.
 
    Typefaces are system stacks on purpose: the app ships a strict CSP
    (default-src 'self') and embedding a webfont CDN is a GDPR problem for a
@@ -23,20 +23,20 @@
    ========================================================================= */
 
 :root {
-  /* Blaubeuren brand palette */
-  --enamel: #213a8f;        /* chrome: top bar, footers */
-  --enamel-deep: #172b6b;
-  --chrome-ink: #dbe2f5;
-  --chrome-muted: #b8c4e5;
-  --ink: #1d2a52;            /* body text */
+  /* Green + petrol brand palette */
+  --enamel: #07545b;        /* chrome: top bar, footers */
+  --enamel-deep: #043b40;
+  --chrome-ink: #d9f0ee;
+  --chrome-muted: #a9d0cd;
+  --ink: #203b36;            /* body text */
   --ink-soft: #676767;       /* secondary text */
-  --blue: #213a8f;           /* links, structure */
-  --blue-tint: #e9ecf8;      /* fills */
+  --blue: #5f7f2d;           /* primary links and structure */
+  --blue-tint: #edf3df;      /* primary fills */
 
-  /* Neutral gray */
-  --signal: #676767;         /* actions, markers, pending */
-  --signal-deep: #4d4d4d;    /* gray darkened to clear AA on light fills */
-  --signal-tint: #eeeeee;
+  /* Petrol secondary */
+  --signal: #008b93;         /* actions, markers, pending */
+  --signal-deep: #00636a;    /* petrol darkened to clear AA on light fills */
+  --signal-tint: #dff2f1;
 
   /* Surfaces */
   --paper: #f5f5f5;
@@ -49,12 +49,12 @@
 
   /* Chat bubbles need per-theme values: "mine" must always sit lighter than
      the thread surface, which flips between light and dark. */
-  --bubble-mine: #213a8f;
+  --bubble-mine: #5f7f2d;
   --bubble-mine-ink: #ffffff;
-  --bubble-theirs: #e9ecf8;
+  --bubble-theirs: #edf3df;
 
-  --shadow: 0 1px 2px rgba(33, 58, 143, 0.06), 0 8px 20px rgba(33, 58, 143, 0.07);
-  --shadow-lift: 0 2px 6px rgba(33, 58, 143, 0.1), 0 16px 36px rgba(33, 58, 143, 0.12);
+  --shadow: 0 1px 2px rgba(95, 127, 45, 0.08), 0 8px 20px rgba(0, 139, 147, 0.07);
+  --shadow-lift: 0 2px 6px rgba(95, 127, 45, 0.12), 0 16px 36px rgba(0, 139, 147, 0.12);
   --radius: 4px;
 
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -106,30 +106,30 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --enamel: #172b6b;
-    --enamel-deep: #0d1b48;
-    --chrome-ink: #e8eefc;
-    --chrome-muted: #c2c2c2;
-    --ink: #e8eefc;
+    --enamel: #06484e;
+    --enamel-deep: #032f34;
+    --chrome-ink: #e1f4f2;
+    --chrome-muted: #b5d8d5;
+    --ink: #e5f1e8;
     --ink-soft: #c2c2c2;
-    --blue: #aebcf0;
-    --blue-tint: #1c2d68;
+    --blue: #b6ce72;
+    --blue-tint: #263a22;
 
-    --signal: #d0d0d0;
-    --signal-deep: #eeeeee;
-    --signal-tint: #363636;
+    --signal: #56c7c7;
+    --signal-deep: #8de0dc;
+    --signal-tint: #163f42;
 
-    --paper: #101a3c;
-    --card: #182653;
-    --line: #2b3c78;
-    --line-strong: #405394;
+    --paper: #10241f;
+    --card: #18332c;
+    --line: #2b5147;
+    --line-strong: #467567;
 
     --red: #ff8a80;
     --red-tint: #3d1512;
 
-    --bubble-mine: #304b9e;
+    --bubble-mine: #496d28;
     --bubble-mine-ink: #ffffff;
-    --bubble-theirs: #223466;
+    --bubble-theirs: #21443b;
 
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.3);
     --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.45), 0 16px 36px rgba(0, 0, 0, 0.4);
@@ -208,7 +208,7 @@ a { color: var(--blue); text-decoration: none; }
 
 /* ---- Bottom tab bar (< 900px) ------------------------------------------
    Four fixed slots in the thumb zone. The active tab is marked with the same
-   3px gray rule the header wears along its bottom edge — the signal colour
+   3px petrol rule the header wears along its bottom edge — the signal colour
    saying "you are here", consistent with .chip.active and .nav a.active.
    ----------------------------------------------------------------------- */
 .tabbar {
@@ -271,7 +271,7 @@ a { color: var(--blue); text-decoration: none; }
 }
 .nav a.active { background: var(--signal); color: var(--enamel-deep); }
 
-/* Unread count beside the Nachrichten link. Gray, like every other
+/* Unread count beside the Nachrichten link. Petrol, like every other
    "needs your attention" signal on the board. */
 .nav-badge {
   display: inline-block; min-width: 18px; margin-left: var(--sp-1); padding: 0 0.32rem;
@@ -406,7 +406,7 @@ a { color: var(--blue); text-decoration: none; }
 .thumbrow { display: none; }
 
 /* ---- Badges ------------------------------------------------------------
-   Blue = sought / official. Gray = offered / awaiting action.
+   Green = sought / official. Petrol = offered / awaiting action.
    ----------------------------------------------------------------------- */
 .badge {
   display: inline-block; font-family: var(--font-mono);
@@ -426,7 +426,7 @@ a { color: var(--blue); text-decoration: none; }
 .badge.past      { background: var(--red-tint); color: var(--red); margin-left: var(--sp-1); }
 
 /* ---- Buttons -----------------------------------------------------------
-   Primary is Blaubeuren blue with white text. Gray is reserved for
+   Primary is green with white text. Petrol is reserved for
    secondary status and attention states.
    ----------------------------------------------------------------------- */
 .btn {
@@ -440,14 +440,14 @@ a { color: var(--blue); text-decoration: none; }
   touch-action: manipulation;
 }
 .btn:active { transform: translateY(1px); }
-.btn.secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.btn.secondary { background: transparent; color: var(--signal-deep); border-color: var(--signal); }
 .btn.ghost { background: transparent; color: var(--blue); padding: var(--sp-1) var(--sp-2); }
 .btn.danger { background: var(--red); color: #fff; }
 /* "small" is a desktop density affordance: on touch it keeps the full target
    height and only the type shrinks. */
 .btn.small { font-size: var(--fs-eyebrow); padding: var(--sp-1) var(--sp-3); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-/* Buttons in the top bar sit on enamel blue. */
+/* Buttons in the top bar sit on enamel petrol. */
 .topbar .btn.secondary { color: #fff; border-color: rgba(255, 255, 255, 0.35); }
 
 /* ---- Forms ------------------------------------------------------------- */
@@ -489,7 +489,7 @@ a { color: var(--blue); text-decoration: none; }
   cursor: pointer; color: var(--ink-soft);
   touch-action: manipulation;
 }
-/* Gray marks the selected filter, matching the active nav item. */
+/* Petrol marks the selected filter, matching the active nav item. */
 .chip.active { background: var(--signal); border-color: var(--signal); color: var(--enamel-deep); font-weight: 700; }
 
 /* ---- Site footer -------------------------------------------------------
@@ -810,7 +810,7 @@ body[data-chat-thread='open'] .consent {
 
 .providers { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.75rem; flex-wrap: wrap; }
 .btn.provider { padding: 0.7rem 1.4rem; font-size: var(--fs-base); min-width: 220px; }
-.btn.provider.secondary { background: var(--card); color: var(--blue); border-color: var(--blue); }
+.btn.provider.secondary { background: var(--card); color: var(--signal-deep); border-color: var(--signal); }
 
 .login {
   max-width: 520px; margin: var(--sp-6) auto; text-align: center;
@@ -837,7 +837,7 @@ body[data-chat-thread='open'] .consent {
   border-top: 4px solid var(--signal);
   overflow-y: auto; overscroll-behavior: contain;
 }
-.sheet::backdrop { background: rgba(7, 24, 65, 0.6); }
+.sheet::backdrop { background: rgba(4, 59, 64, 0.6); }
 .sheet-content {
   position: relative;
   padding: var(--sp-5) var(--sp-4);
@@ -1058,7 +1058,7 @@ body[data-chat-thread='open'] .consent {
   .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
   .card-clickable:hover { border-color: var(--line-strong); }
   .btn:hover { filter: brightness(1.07); text-decoration: none; }
-  .btn.secondary:hover { background: var(--blue-tint); filter: none; }
+  .btn.secondary:hover { background: var(--signal-tint); filter: none; }
   .topbar .btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
   .chip:hover { border-color: var(--blue); color: var(--blue); }
   .chip.active:hover { color: var(--enamel-deep); }
