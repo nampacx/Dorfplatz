@@ -39,3 +39,6 @@ swa-cli.config.local.json
 
 # Logs
 *.log
+
+# Office lock files (created when a .pptx/.docx in the repo is open)
+~$*

@@ -42,6 +42,25 @@ The GDPR implementation is a technical aid, not legal advice. Before a productio
 launch, complete the controller details and retention decisions documented in
 [docs/GDPR.md](docs/GDPR.md) and [docs/IMPRESSUM.md](docs/IMPRESSUM.md).
 
+## Abgrenzung: Was der Dorfplatz nicht ist
+
+Der Dorfplatz will **keine** bestehenden Werkzeuge ersetzen:
+
+- **Kein Ersatz für WhatsApp oder Signal.** Die Nachrichtenfunktion dient ausschließlich
+  konkreten Absprachen zu einem Angebot, einem Gesuch oder einer Marktplatz-Anzeige.
+  Sie ist bewusst keine allgemeine Messenger- oder Chat-Plattform für den Alltag.
+- **Kein Ersatz für Kleinanzeigen und ähnliche Verkaufsportale.** Der Marktplatz ist für
+  die Nachbarschaft in Asch gedacht — nicht als Handelsplattform mit großer Reichweite,
+  Versand, Bezahlfunktionen oder gewerblichem Verkauf.
+- **Kein Ersatz für Werkzeuge zur Vereinsverwaltung.** Mitgliederlisten, Beiträge, interne
+  Termine und die Organisation der Vereine bleiben dort, wo sie heute schon gepflegt
+  werden. Der Dorfplatz macht nur sichtbar, was für das ganze Dorf interessant ist.
+
+Das Ziel ist ein anderes: **Der Dorfplatz soll das Leben in unserem Dorf verbessern.**
+Informationen an einem Ort bündeln, Hilfe in der Nachbarschaft sichtbar machen und die
+Zusammenarbeit vor Ort stärken. Alles andere darf ruhig dort bleiben, wo es heute schon
+gut funktioniert.
+
 ## Architecture
 
 | Layer | Technology |
