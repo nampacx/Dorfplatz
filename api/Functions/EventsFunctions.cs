@@ -27,8 +27,17 @@ public class EventsFunctions
     private static bool MayEdit(EventPost e, AppUser? viewer) =>
         viewer is not null && (e.AuthorId == viewer.Id || CurrentUserService.IsAdmin(viewer));
 
+    private static string? ValidateSchedule(DateTimeOffset? start, DateTimeOffset? end)
+    {
+        if (end is not null && start is null)
+            return "An end date requires a start date.";
+        if (start is not null && end is not null && end < start)
+            return "The end date must be on or after the start date.";
+        return null;
+    }
+
     private static EventDto Map(EventPost e, AppUser? viewer = null) => new(
-        e.Id, e.Title, e.Description, e.EventDate, e.Location, e.Category.ToString(),
+        e.Id, e.Title, e.Description, e.EventDate, e.EndDate, e.Location, e.Category.ToString(),
         e.Status.ToString(), e.RejectionReason, e.Author?.DisplayName ?? "Unknown", e.CreatedAt,
         MayEdit(e, viewer));
 
@@ -53,7 +62,7 @@ public class EventsFunctions
         {
             // A Termin counts as upcoming for the whole of its day.
             var cutoff = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
-            query = query.Where(e => e.EventDate == null || e.EventDate >= cutoff);
+            query = query.Where(e => (e.EndDate ?? e.EventDate) == null || (e.EndDate ?? e.EventDate) >= cutoff);
         }
 
         if (Enum.TryParse<EventCategory>(req.Query["category"].ToString(), ignoreCase: true, out var category))
@@ -101,12 +110,15 @@ public class EventsFunctions
         var category = Enum.TryParse<EventCategory>(body.Category, ignoreCase: true, out var parsed)
             ? parsed
             : EventCategory.Sonstiges;
+        var scheduleError = ValidateSchedule(body.EventDate, body.EndDate);
+        if (scheduleError is not null) return new BadRequestObjectResult(scheduleError);
 
         var e = new EventPost
         {
             Title = body.Title.Trim(),
             Description = body.Description.Trim(),
             EventDate = body.EventDate,
+            EndDate = body.EndDate,
             Location = body.Location?.Trim(),
             Category = category,
             AuthorId = me.Id,
@@ -146,10 +158,13 @@ public class EventsFunctions
         var category = Enum.TryParse<EventCategory>(body.Category, ignoreCase: true, out var parsed)
             ? parsed
             : EventCategory.Sonstiges;
+        var scheduleError = ValidateSchedule(body.EventDate, body.EndDate);
+        if (scheduleError is not null) return new BadRequestObjectResult(scheduleError);
 
         e.Title = body.Title.Trim();
         e.Description = body.Description.Trim();
         e.EventDate = body.EventDate;
+        e.EndDate = body.EndDate;
         e.Location = body.Location?.Trim();
         e.Category = category;
         e.UpdatedAt = DateTimeOffset.UtcNow;

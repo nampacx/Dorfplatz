@@ -1,5 +1,6 @@
 import type { EventPost } from '../../types'
 import { STATUS_LABELS } from './labels'
+import { scheduleHasExplicitTime } from './schedule'
 
 /** RFC 5545 escaping: backslash, semicolon, comma and newlines are special in text values. */
 function escapeText(value: string) {
@@ -62,10 +63,6 @@ function buildDescription(item: EventPost) {
   return lines.join('\n')
 }
 
-/**
- * An all-day VEVENT for the given post. Events are captured with a date only,
- * so DTSTART/DTEND use VALUE=DATE (DTEND is exclusive, hence the next day).
- */
 export function buildEventIcs(item: EventPost, now = new Date()): string {
   const lines = [
     'BEGIN:VCALENDAR',
@@ -81,9 +78,14 @@ export function buildEventIcs(item: EventPost, now = new Date()): string {
 
   if (item.eventDate) {
     const start = new Date(item.eventDate)
-    const end = new Date(start)
-    end.setDate(end.getDate() + 1)
-    lines.push(`DTSTART;VALUE=DATE:${dateValue(start)}`, `DTEND;VALUE=DATE:${dateValue(end)}`)
+    if (scheduleHasExplicitTime(item.eventDate, 'start') || scheduleHasExplicitTime(item.endDate, 'end')) {
+      lines.push(`DTSTART:${utcStamp(start)}`)
+      if (item.endDate) lines.push(`DTEND:${utcStamp(new Date(item.endDate))}`)
+    } else {
+      const end = item.endDate ? new Date(item.endDate) : new Date(start)
+      end.setDate(end.getDate() + 1)
+      lines.push(`DTSTART;VALUE=DATE:${dateValue(start)}`, `DTEND;VALUE=DATE:${dateValue(end)}`)
+    }
   } else {
     // No date on the post: anchor the entry on its submission day so the file stays valid.
     const created = new Date(item.createdAt)
