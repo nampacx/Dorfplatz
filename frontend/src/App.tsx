@@ -58,7 +58,7 @@ function AppHeader() {
             <a className="btn secondary small wide-only" href="/.auth/logout?post_logout_redirect_uri=/">Abmelden</a>
           </>
         ) : (
-          <NavLink className="btn small wide-only" to="/login">Anmelden</NavLink>
+          <NavLink className="btn small wide-only login-link" to="/login">Anmelden</NavLink>
         )}
       </div>
     </header>
