@@ -78,11 +78,11 @@ export function buildEventIcs(item: EventPost, now = new Date()): string {
 
   if (item.eventDate) {
     const start = new Date(item.eventDate)
-    const end = item.endDate ? new Date(item.endDate) : new Date(start)
     if (scheduleHasExplicitTime(item.eventDate, 'start') || scheduleHasExplicitTime(item.endDate, 'end')) {
-      const endStamp = item.endDate ? utcStamp(end) : utcStamp(start)
-      lines.push(`DTSTART:${utcStamp(start)}`, `DTEND:${endStamp}`)
+      lines.push(`DTSTART:${utcStamp(start)}`)
+      if (item.endDate) lines.push(`DTEND:${utcStamp(new Date(item.endDate))}`)
     } else {
+      const end = item.endDate ? new Date(item.endDate) : new Date(start)
       end.setDate(end.getDate() + 1)
       lines.push(`DTSTART;VALUE=DATE:${dateValue(start)}`, `DTEND;VALUE=DATE:${dateValue(end)}`)
     }
