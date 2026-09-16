@@ -6,11 +6,7 @@ import EventCalendar from './EventCalendar'
 import EventDetail from './EventDetail'
 import EventFormModal from './EventFormModal'
 import { EVENT_CATEGORIES, type EventCategory, type EventPost } from '../../types'
-
-function fmtDate(iso: string | null) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })
-}
+import { formatSchedule } from './schedule'
 
 type ViewMode = 'cards' | 'calendar'
 
@@ -26,7 +22,8 @@ function readStoredView(): ViewMode {
 }
 
 /** Matches the API cutoff: a Termin counts as upcoming for the whole of its day. */
-function isPast(iso: string | null) {
+function isPast(startIso: string | null, endIso: string | null) {
+  const iso = endIso ?? startIso
   if (!iso) return false
   const startOfToday = new Date()
   startOfToday.setHours(0, 0, 0, 0)
@@ -146,11 +143,11 @@ export default function EventsPage() {
               }}
             >
               <span className="badge category">{e.category}</span>
-              {isPast(e.eventDate) && <span className="badge past">Vorbei</span>}
+              {isPast(e.eventDate, e.endDate) && <span className="badge past">Vorbei</span>}
               <h3>{e.title}</h3>
               <div className="desc desc-clamp">{e.description}</div>
               <div className="meta">
-                <span>{[fmtDate(e.eventDate), e.location].filter(Boolean).join(' · ')}</span>
+                <span>{[formatSchedule(e.eventDate, e.endDate), e.location].filter(Boolean).join(' · ')}</span>
                 {isModerator && <span>{e.authorName}</span>}
               </div>
             </article>

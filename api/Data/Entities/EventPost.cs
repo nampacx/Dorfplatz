@@ -10,6 +10,7 @@ public class EventPost
     public string Title { get; set; } = default!;
     public string Description { get; set; } = default!;
     public DateTimeOffset? EventDate { get; set; }
+    public DateTimeOffset? EndDate { get; set; }
     public string? Location { get; set; }
 
     /// <summary>Existing rows predate categories, so they fall back to Sonstiges.</summary>

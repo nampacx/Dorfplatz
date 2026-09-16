@@ -4,15 +4,9 @@ import DetailModal from '../../components/DetailModal'
 import type { EventPost } from '../../types'
 import { downloadEventIcs } from './ics'
 import { STATUS_LABELS } from './labels'
+import { formatSchedule } from './schedule'
 
 export { STATUS_LABELS }
-
-export function fmtEventDate(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString('de-DE', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-  })
-}
 
 function fmtDay(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -36,7 +30,7 @@ export default function EventDetail({
   onEdit?: () => void
   onDeleted?: () => void
 }) {
-  const when = fmtEventDate(item.eventDate)
+  const when = formatSchedule(item.eventDate, item.endDate, { withWeekday: true })
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
