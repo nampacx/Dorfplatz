@@ -61,8 +61,8 @@ export default function EventDetail({
         <dt>Kategorie</dt><dd>{item.category}</dd>
         {when && (<><dt>Termin</dt><dd>{when}</dd></>)}
         {item.location && (<><dt>Ort</dt><dd>{item.location}</dd></>)}
-        <dt>Eingereicht von</dt><dd>{item.authorName}</dd>
-        <dt>Eingereicht am</dt><dd>{fmtDay(item.createdAt)}</dd>
+        {item.authorName && (<><dt>Eingereicht von</dt><dd>{item.authorName}</dd></>)}
+        {item.createdAt && (<><dt>Eingereicht am</dt><dd>{fmtDay(item.createdAt)}</dd></>)}
       </dl>
 
       {item.status === 'Rejected' && item.rejectionReason && (

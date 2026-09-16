@@ -31,8 +31,8 @@ export interface EventPost {
   category: EventCategory
   status: 'Pending' | 'Published' | 'Rejected'
   rejectionReason: string | null
-  authorName: string
-  createdAt: string
+  authorName?: string
+  createdAt?: string
   /** True when the signed-in viewer may edit, resubmit or delete this event. */
   canEdit: boolean
 }
