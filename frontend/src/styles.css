@@ -434,22 +434,22 @@ a { color: var(--blue); text-decoration: none; }
   min-height: var(--control-h);
   border: 1px solid transparent; cursor: pointer; font-family: inherit;
   font-size: var(--fs-sm); font-weight: 700; padding: var(--sp-2) var(--sp-4);
-  border-radius: var(--radius); background: var(--blue); color: #fff;
+  border-radius: var(--radius); background: #456118; border-color: #456118; color: #fff;
   transition: filter 0.12s ease, transform 0.12s ease;
   /* Skips the 300ms double-tap-zoom delay on touch. */
   touch-action: manipulation;
 }
 .btn:active { transform: translateY(1px); }
-.btn.secondary { background: transparent; color: var(--signal-deep); border-color: var(--signal); }
+.btn.secondary,
+.btn.danger,
+.btn.provider.secondary,
+.topbar .login-link,
+.topbar .btn.secondary { background: #456118; color: #fff; border-color: #456118; }
 .btn.ghost { background: transparent; color: var(--blue); padding: var(--sp-1) var(--sp-2); }
-.btn.danger { background: var(--red); color: #fff; }
 /* "small" is a desktop density affordance: on touch it keeps the full target
    height and only the type shrinks. */
 .btn.small { font-size: var(--fs-eyebrow); padding: var(--sp-1) var(--sp-3); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-/* Buttons in the top bar sit on enamel petrol. */
-.topbar .login-link { background: #456118; border-color: #456118; }
-.topbar .btn.secondary { color: #fff; border-color: rgba(255, 255, 255, 0.35); }
 
 /* ---- Forms ------------------------------------------------------------- */
 .field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: var(--sp-4); }
@@ -811,8 +811,6 @@ body[data-chat-thread='open'] .consent {
 
 .providers { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.75rem; flex-wrap: wrap; }
 .btn.provider { padding: 0.7rem 1.4rem; font-size: var(--fs-base); min-width: 220px; }
-.btn.provider.secondary { background: var(--card); color: var(--signal-deep); border-color: var(--signal); }
-
 .login {
   max-width: 520px; margin: var(--sp-6) auto; text-align: center;
   background: var(--card); border: 1px solid var(--line);
@@ -1059,8 +1057,8 @@ body[data-chat-thread='open'] .consent {
   .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
   .card-clickable:hover { border-color: var(--line-strong); }
   .btn:hover { filter: brightness(1.07); text-decoration: none; }
-  .btn.secondary:hover { background: var(--signal-tint); filter: none; }
-  .topbar .btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+  .btn.secondary:hover { background: #456118; }
+  .topbar .btn.secondary:hover { background: #456118; }
   .chip:hover { border-color: var(--blue); color: var(--blue); }
   .chip.active:hover { color: var(--enamel-deep); }
   .cal-day:hover { background: var(--blue-tint); }
