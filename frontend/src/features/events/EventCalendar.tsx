@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { EventPost } from '../../types'
+import { eventEndsAt, formatCalendarTime } from './schedule'
 
 /** Monday-first, the way a German wall calendar reads. */
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -26,12 +27,6 @@ function mondayIndex(d: Date) {
 
 function fmtLongDate(d: Date) {
   return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-}
-
-function fmtTime(iso: string) {
-  const d = new Date(iso)
-  if (d.getHours() === 0 && d.getMinutes() === 0) return ''
-  return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 }
 
 interface Props {
@@ -62,7 +57,7 @@ export default function EventCalendar({ events, onSelect }: Props) {
     return map
   }, [events])
 
-  const undated = useMemo(() => events.filter((e) => !e.eventDate), [events])
+  const undated = useMemo(() => events.filter((e) => !e.eventDate && !eventEndsAt(e)), [events])
 
   const cells = useMemo(() => {
     const first = startOfMonth(month)
@@ -192,7 +187,7 @@ export default function EventCalendar({ events, onSelect }: Props) {
               {selectedEvents.map((e) => (
                 <li key={e.id}>
                   <button type="button" className="cal-daylist-item" onClick={() => onSelect(e)}>
-                    <span className="cal-daylist-time">{fmtTime(e.eventDate!) || '–'}</span>
+                    <span className="cal-daylist-time">{formatCalendarTime(e.eventDate, e.endDate)}</span>
                     <span>
                       <strong>{e.title}</strong>
                       {e.location && <span className="cal-daylist-loc"> · {e.location}</span>}

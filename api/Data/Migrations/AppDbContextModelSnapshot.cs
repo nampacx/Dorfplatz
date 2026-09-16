@@ -169,6 +169,9 @@ namespace BulletinBoard.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("EventDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Location")
                         .HasColumnType("text");
 

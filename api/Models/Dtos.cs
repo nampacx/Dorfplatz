@@ -5,12 +5,12 @@ namespace BulletinBoard.Api.Models;
 
 // ---- Events ----
 public record CreateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string? Category);
+    string? Category, DateTimeOffset? EndDate);
 public record UpdateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string? Category);
+    string? Category, DateTimeOffset? EndDate);
 public record RejectEventRequest(string Reason);
-public record EventDto(Guid Id, string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string Category, string Status, string? RejectionReason,
+public record EventDto(Guid Id, string Title, string Description, DateTimeOffset? EventDate, DateTimeOffset? EndDate,
+    string? Location, string Category, string Status, string? RejectionReason,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AuthorName,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? CreatedAt,
     bool CanEdit);

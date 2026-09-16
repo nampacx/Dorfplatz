@@ -26,6 +26,7 @@ export interface EventPost {
   title: string
   description: string
   eventDate: string | null
+  endDate: string | null
   location: string | null
   category: EventCategory
   status: 'Pending' | 'Published' | 'Rejected'

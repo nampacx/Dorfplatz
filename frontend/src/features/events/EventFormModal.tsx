@@ -3,11 +3,7 @@ import { api } from '../../api/client'
 import { ErrorNotice } from '../../components/Common'
 import Sheet from '../../components/Sheet'
 import { EVENT_CATEGORIES, type EventCategory, type EventPost } from '../../types'
-
-/** Date input wants yyyy-MM-dd; the API returns an ISO timestamp. */
-function toDateInput(iso: string | null) {
-  return iso ? new Date(iso).toISOString().slice(0, 10) : ''
-}
+import { combineDateAndTime, toDateInputValue, toTimeInputValue } from './schedule'
 
 /**
  * Create when `existing` is omitted, otherwise edit and resubmit that event.
@@ -25,7 +21,10 @@ export default function EventFormModal({
   const [form, setForm] = useState({
     title: existing?.title ?? '',
     description: existing?.description ?? '',
-    eventDate: toDateInput(existing?.eventDate ?? null),
+    eventDate: toDateInputValue(existing?.eventDate ?? null),
+    startTime: toTimeInputValue(existing?.eventDate ?? null, 'start'),
+    endDate: toDateInputValue(existing?.endDate ?? null),
+    endTime: toTimeInputValue(existing?.endDate ?? null, 'end'),
     location: existing?.location ?? '',
     category: (existing?.category ?? 'Sonstiges') as EventCategory,
   })
@@ -40,7 +39,8 @@ export default function EventFormModal({
       const payload = {
         title: form.title,
         description: form.description,
-        eventDate: form.eventDate ? new Date(form.eventDate).toISOString() : null,
+        eventDate: combineDateAndTime(form.eventDate, form.startTime),
+        endDate: combineDateAndTime(form.endDate, form.endTime, { blankTimeMeansEndOfDay: true }),
         location: form.location || null,
         category: form.category,
       }
@@ -91,8 +91,59 @@ export default function EventFormModal({
         </div>
         <div className="row">
           <div className="field">
-            <label>Datum</label>
-            <input type="date" value={form.eventDate} onChange={(e) => setForm({ ...form, eventDate: e.target.value })} />
+            <label>Startdatum</label>
+            <input
+              type="date"
+              value={form.eventDate}
+              onChange={(e) => setForm((current) => {
+                const nextDate = e.target.value
+                return {
+                  ...current,
+                  eventDate: nextDate,
+                  startTime: nextDate ? current.startTime : '',
+                  endDate: nextDate ? current.endDate : '',
+                  endTime: nextDate ? current.endTime : '',
+                }
+              })}
+            />
+          </div>
+          <div className="field">
+            <label>Startzeit</label>
+            <input
+              type="time"
+              value={form.startTime}
+              disabled={!form.eventDate}
+              onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="row">
+          <div className="field">
+            <label>Enddatum</label>
+            <input
+              type="date"
+              value={form.endDate}
+              disabled={!form.eventDate}
+              min={form.eventDate || undefined}
+              onChange={(e) => setForm((current) => ({
+                ...current,
+                endDate: e.target.value,
+                endTime: e.target.value ? current.endTime : '',
+              }))}
+            />
+          </div>
+          <div className="field">
+            <label>Endzeit</label>
+            <input
+              type="time"
+              value={form.endTime}
+              disabled={!form.endDate}
+              onChange={(e) => setForm((current) => ({
+                ...current,
+                endDate: current.endDate || current.eventDate,
+                endTime: e.target.value,
+              }))}
+            />
           </div>
           <div className="field">
             <label>Ort</label>
