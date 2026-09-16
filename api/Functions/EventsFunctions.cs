@@ -28,7 +28,8 @@ public class EventsFunctions
         viewer is not null && (e.AuthorId == viewer.Id || CurrentUserService.IsAdmin(viewer));
 
     private static bool MaySeeSubmissionInfo(AppUser? viewer) =>
-        viewer is not null && CurrentUserService.IsModerator(viewer);
+        viewer is not null
+        && (CurrentUserService.IsInRole(viewer, Roles.Moderator) || CurrentUserService.IsAdmin(viewer));
 
     private static EventDto Map(EventPost e, AppUser? viewer = null) => new(
         e.Id, e.Title, e.Description, e.EventDate, e.Location, e.Category.ToString(),
