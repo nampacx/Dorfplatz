@@ -45,7 +45,7 @@ function fmtDay(iso: string) {
 
 /**
  * Everything the detail view shows that has no dedicated iCalendar property
- * (category, author, submission date, rejection reason) goes into DESCRIPTION,
+ * (category, optional author/submission date, rejection reason) goes into DESCRIPTION,
  * so the downloaded file carries the full submission.
  */
 function buildDescription(item: EventPost) {
@@ -53,8 +53,8 @@ function buildDescription(item: EventPost) {
   if (item.description) lines.push(item.description, '')
   lines.push(`Kategorie: ${item.category}`)
   if (item.location) lines.push(`Ort: ${item.location}`)
-  lines.push(`Eingereicht von: ${item.authorName}`)
-  lines.push(`Eingereicht am: ${fmtDay(item.createdAt)}`)
+  if (item.authorName) lines.push(`Eingereicht von: ${item.authorName}`)
+  if (item.createdAt) lines.push(`Eingereicht am: ${fmtDay(item.createdAt)}`)
   if (item.status !== 'Published') lines.push(`Status: ${STATUS_LABELS[item.status]}`)
   if (item.status === 'Rejected' && item.rejectionReason) {
     lines.push(`Grund der Ablehnung: ${item.rejectionReason}`)
@@ -86,7 +86,7 @@ export function buildEventIcs(item: EventPost, now = new Date()): string {
     lines.push(`DTSTART;VALUE=DATE:${dateValue(start)}`, `DTEND;VALUE=DATE:${dateValue(end)}`)
   } else {
     // No date on the post: anchor the entry on its submission day so the file stays valid.
-    const created = new Date(item.createdAt)
+    const created = item.createdAt ? new Date(item.createdAt) : now
     const end = new Date(created)
     end.setDate(end.getDate() + 1)
     lines.push(`DTSTART;VALUE=DATE:${dateValue(created)}`, `DTEND;VALUE=DATE:${dateValue(end)}`)
@@ -94,7 +94,7 @@ export function buildEventIcs(item: EventPost, now = new Date()): string {
 
   if (item.location) lines.push(`LOCATION:${escapeText(item.location)}`)
   lines.push(`CATEGORIES:${escapeText(item.category)}`)
-  lines.push(`ORGANIZER;CN=${escapeText(item.authorName)}:MAILTO:noreply@dorfplatz.invalid`)
+  if (item.authorName) lines.push(`ORGANIZER;CN=${escapeText(item.authorName)}:MAILTO:noreply@dorfplatz.invalid`)
   lines.push(`DESCRIPTION:${escapeText(buildDescription(item))}`)
   if (item.status !== 'Published') lines.push('STATUS:TENTATIVE')
   else lines.push('STATUS:CONFIRMED')

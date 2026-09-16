@@ -27,9 +27,14 @@ public class EventsFunctions
     private static bool MayEdit(EventPost e, AppUser? viewer) =>
         viewer is not null && (e.AuthorId == viewer.Id || CurrentUserService.IsAdmin(viewer));
 
+    private static bool MaySeeSubmissionInfo(AppUser? viewer) =>
+        viewer is not null && CurrentUserService.IsModerator(viewer);
+
     private static EventDto Map(EventPost e, AppUser? viewer = null) => new(
         e.Id, e.Title, e.Description, e.EventDate, e.Location, e.Category.ToString(),
-        e.Status.ToString(), e.RejectionReason, e.Author?.DisplayName ?? "Unknown", e.CreatedAt,
+        e.Status.ToString(), e.RejectionReason,
+        MaySeeSubmissionInfo(viewer) ? e.Author?.DisplayName ?? "Unknown" : null,
+        MaySeeSubmissionInfo(viewer) ? e.CreatedAt : null,
         MayEdit(e, viewer));
 
     /// <summary>

@@ -1,4 +1,5 @@
 using BulletinBoard.Api.Data;
+using System.Text.Json.Serialization;
 
 namespace BulletinBoard.Api.Models;
 
@@ -9,7 +10,9 @@ public record UpdateEventRequest(string Title, string Description, DateTimeOffse
     string? Category);
 public record RejectEventRequest(string Reason);
 public record EventDto(Guid Id, string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string Category, string Status, string? RejectionReason, string AuthorName, DateTimeOffset CreatedAt,
+    string Category, string Status, string? RejectionReason,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AuthorName,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? CreatedAt,
     bool CanEdit);
 
 // ---- Services ----
