@@ -448,7 +448,7 @@ a { color: var(--blue); text-decoration: none; }
 .btn.small { font-size: var(--fs-eyebrow); padding: var(--sp-1) var(--sp-3); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 /* Buttons in the top bar sit on enamel petrol. */
-.topbar .btn { background: #456118; border-color: #456118; }
+.topbar .login-link { background: #456118; border-color: #456118; }
 .topbar .btn.secondary { color: #fff; border-color: rgba(255, 255, 255, 0.35); }
 
 /* ---- Forms ------------------------------------------------------------- */
