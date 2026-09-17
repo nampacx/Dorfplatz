@@ -1,9 +1,107 @@
 import { useState } from 'react'
-import { api } from '../../api/client'
+import { ApiError, api } from '../../api/client'
 import { EmptyState, ErrorNotice, Loading, RequireRole, useAsync } from '../../components/Common'
 import Sheet from '../../components/Sheet'
 import EventDetail from './EventDetail'
 import type { EventPost } from '../../types'
+
+type ExportDayOption = '7' | '14' | '21' | 'custom'
+const MAX_EXPORT_DAYS = 90
+
+function buildExportDays(option: ExportDayOption, customDays: string) {
+  if (option !== 'custom') return Number(option)
+  if (!/^\d+$/.test(customDays)) return null
+  const days = Number(customDays)
+  return Number.isInteger(days) && days >= 0 && days <= MAX_EXPORT_DAYS ? days : null
+}
+
+function ExportPanel() {
+  const [option, setOption] = useState<ExportDayOption>('7')
+  const [customDays, setCustomDays] = useState('7')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const days = buildExportDays(option, customDays)
+
+  async function exportPdf() {
+    if (days === null) return
+
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`${api.base}/moderation/events/export?days=${days}`)
+      if (res.status === 401) throw new ApiError('Bitte anmelden.', 401)
+      if (res.status === 403) throw new ApiError('Keine Berechtigung.', 403)
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new ApiError(text || `Fehler ${res.status}`, res.status)
+      }
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `events-${days}d.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="panel" style={{ marginBottom: '1.5rem' }}>
+      <h2 style={{ marginTop: 0 }}>Event-PDF exportieren</h2>
+      <p style={{ color: 'var(--ink-soft)' }}>
+        Exportiert veröffentlichte Events ab heute für 7, 14, 21 oder individuell 0 bis 90 Tage.
+      </p>
+      {error && <ErrorNotice message={error} />}
+      <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="field" style={{ minWidth: 180, marginBottom: 0 }}>
+          <label htmlFor="event-export-range">Zeitraum</label>
+          <select
+            id="event-export-range"
+            value={option}
+            onChange={(e) => {
+              const next = e.target.value as ExportDayOption
+              setOption(next)
+              setError(null)
+            }}
+          >
+            <option value="7">7 Tage</option>
+            <option value="14">14 Tage</option>
+            <option value="21">21 Tage</option>
+            <option value="custom">Benutzerdefiniert</option>
+          </select>
+        </div>
+        <div className="field" style={{ minWidth: 180, marginBottom: 0 }}>
+          <label htmlFor="event-export-custom-days">Tage (0–90)</label>
+          <input
+            id="event-export-custom-days"
+            type="number"
+            min={0}
+            max={MAX_EXPORT_DAYS}
+            step={1}
+            disabled={option !== 'custom'}
+            value={customDays}
+            onChange={(e) => {
+              setCustomDays(e.target.value)
+              setError(null)
+            }}
+          />
+        </div>
+        <button className="btn" disabled={busy || days === null} onClick={exportPdf}>
+          {busy ? 'Erstellt…' : 'Export erstellen'}
+        </button>
+      </div>
+      {option === 'custom' && days === null && (
+        <small style={{ color: 'var(--danger)' }}>Bitte eine ganze Zahl zwischen 0 und 90 eingeben.</small>
+      )}
+    </div>
+  )
+}
 
 function ModerationQueue() {
   const { data, loading, error, reload } = useAsync(() => api.get<EventPost[]>('/moderation/events'), [])
@@ -127,6 +225,7 @@ export default function ModerationPage() {
         <h1>Moderation</h1>
         <p>Prüfe eingereichte Events und gib sie frei oder lehne sie ab.</p>
       </div>
+      <ExportPanel />
       <ModerationQueue />
     </RequireRole>
   )
