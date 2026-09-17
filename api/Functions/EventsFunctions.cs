@@ -17,7 +17,6 @@ public class EventsFunctions
     private const int MaxExportDays = 90;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private static readonly TimeZoneInfo BoardTimeZone = ResolveBoardTimeZone();
-
     private readonly AppDbContext _db;
     private readonly CurrentUserService _users;
     private readonly AuditService _audit;
@@ -48,22 +47,32 @@ public class EventsFunctions
 
     private static TimeZoneInfo ResolveBoardTimeZone()
     {
-        try
+        foreach (var id in new[] { "Europe/Berlin", "W. Europe Standard Time" })
         {
-            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
         }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.Utc;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return TimeZoneInfo.Utc;
-        }
+
+        return TimeZoneInfo.Utc;
     }
 
     private static DateTimeOffset ToBoardTime(DateTimeOffset value) =>
         TimeZoneInfo.ConvertTime(value, BoardTimeZone);
+
+    private static DateTimeOffset UpcomingCutoff()
+    {
+        var now = ToBoardTime(DateTimeOffset.UtcNow);
+        var startOfToday = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, now.Offset);
+        return startOfToday.ToUniversalTime();
+    }
 
     private static DateTimeOffset GetBoardDayStart(DateTimeOffset value)
     {
@@ -125,7 +134,7 @@ public class EventsFunctions
 
     private static (DateTimeOffset StartInclusive, DateTimeOffset EndExclusive) GetExportWindow(int days)
     {
-        var start = GetBoardDayStart(DateTimeOffset.UtcNow);
+        var start = UpcomingCutoff();
         return (start, start.AddDays(Math.Max(1, days)));
     }
 
@@ -297,8 +306,10 @@ public class EventsFunctions
             && viewer is not null && CurrentUserService.IsModerator(viewer);
         if (!includePast)
         {
-            // A Termin counts as upcoming for the whole of its day.
-            var cutoff = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+            // Date-only entries are serialized from the browser's local midnight,
+            // so the board must compare against its own local day boundary rather
+            // than UTC midnight or same-day events disappear too early.
+            var cutoff = UpcomingCutoff();
             query = query.Where(e => (e.EndDate ?? e.EventDate) == null || (e.EndDate ?? e.EventDate) >= cutoff);
         }
 
