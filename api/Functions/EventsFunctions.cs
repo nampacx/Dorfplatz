@@ -12,6 +12,7 @@ namespace BulletinBoard.Api.Functions;
 
 public class EventsFunctions
 {
+    private static readonly TimeZoneInfo BoardTimeZone = ResolveBoardTimeZone();
     private readonly AppDbContext _db;
     private readonly CurrentUserService _users;
     private readonly AuditService _audit;
@@ -40,6 +41,32 @@ public class EventsFunctions
         viewer is not null
         && (CurrentUserService.IsInRole(viewer, Roles.Moderator) || CurrentUserService.IsAdmin(viewer));
 
+    private static TimeZoneInfo ResolveBoardTimeZone()
+    {
+        foreach (var id in new[] { "Europe/Berlin", "W. Europe Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+
+    private static DateTimeOffset UpcomingCutoff()
+    {
+        var now = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, BoardTimeZone);
+        var startOfToday = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, now.Offset);
+        return startOfToday.ToUniversalTime();
+    }
+
     private static EventDto Map(EventPost e, AppUser? viewer = null) => new(
         e.Id, e.Title, e.Description, e.EventDate, e.EndDate, e.Location, e.Category.ToString(),
         e.Status.ToString(), e.RejectionReason,
@@ -66,8 +93,10 @@ public class EventsFunctions
             && viewer is not null && CurrentUserService.IsModerator(viewer);
         if (!includePast)
         {
-            // A Termin counts as upcoming for the whole of its day.
-            var cutoff = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+            // Date-only entries are serialized from the browser's local midnight,
+            // so the board must compare against its own local day boundary rather
+            // than UTC midnight or same-day events disappear too early.
+            var cutoff = UpcomingCutoff();
             query = query.Where(e => (e.EndDate ?? e.EventDate) == null || (e.EndDate ?? e.EventDate) >= cutoff);
         }
 
