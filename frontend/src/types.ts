@@ -116,5 +116,14 @@ export interface AdminUser {
   statusReason: string | null
 }
 
+export interface PagedResult<T> {
+  items: T[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+export type AdminUserPage = PagedResult<AdminUser>
+
 /** What an admin can do to a member's access. Mirrors AccessDecisions in the API. */
 export type AccessDecision = 'approve' | 'reject' | 'suspend'

@@ -254,6 +254,20 @@ a { color: var(--blue); text-decoration: none; }
   padding-bottom: var(--sp-4); border-bottom: 1px dashed var(--line-strong);
 }
 .approval-item:last-child { padding-bottom: 0; border-bottom: none; }
+.admin-search-panel { margin-bottom: var(--sp-4); }
+.admin-search-field { margin-bottom: 0; max-width: 32rem; }
+.admin-panel-head {
+  display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-4);
+}
+.admin-panel-copy { min-width: 0; }
+.admin-panel-meta, .admin-pager-status, .admin-overflow-note { margin: 0; }
+.admin-pager { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.admin-member-main { min-width: 0; }
+.admin-member-name { font-weight: 600; overflow-wrap: anywhere; }
+.admin-member-email { color: var(--ink-soft); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.admin-role-list { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.admin-table-actions { min-width: 12rem; }
+.admin-overflow-note { margin-top: var(--sp-3); color: var(--ink-soft); font-size: var(--fs-sm); }
 .brand {
   display: flex; align-items: center; gap: var(--sp-2);
   font-weight: 800; font-size: var(--fs-base); color: #fff;
@@ -952,8 +966,10 @@ body[data-chat-thread='open'] .consent {
 
   /* Decision and actions side by side once there is room. */
   .approval-item { flex-direction: row; align-items: center; justify-content: space-between; }
+  .approval-item .admin-member-main { flex: 1; min-width: 0; }
   .approval-item .stack-actions { flex-direction: row; flex-shrink: 0; }
   .approval-item .stack-actions .btn { width: auto; }
+  .admin-panel-head { flex-direction: row; align-items: flex-start; justify-content: space-between; }
 }
 
 /* =========================================================================
