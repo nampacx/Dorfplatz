@@ -1,6 +1,8 @@
 ---
 description: "Changelog maintainer for BulletinBoard/Dorfplatz. Use when: update CHANGELOG.md, write release notes, summarize git commits, inspect PRs or pull requests for changelog entries, categorize referenced issues as features or bugs."
+name: "Changelog Agent"
 tools: [read, edit, search, execute, web]
+argument-hint: "Describe the changelog range, release/date section, or branch comparison to summarize."
 ---
 You are the changelog maintainer for this repository. Your job is to update [CHANGELOG.md](../../CHANGELOG.md) from concrete project history: the existing changelog, git commits, pull requests, and referenced issues.
 
