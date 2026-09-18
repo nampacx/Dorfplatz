@@ -80,29 +80,26 @@ public sealed class EventsFunctionsTests : IDisposable
     }
 
     [Fact]
-    public async Task ListMine_ReturnsSignedImageUrlAndEditableBlobName()
+    public async Task Create_ReturnsSignedImageUrlForUploadedImage()
     {
         await using var db = CreateDb();
         var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
-        db.Events.Add(new EventPost
-        {
-            Title = "Sommerfest",
-            Description = "Am Dorfplatz",
-            Category = EventCategory.Vereine,
-            AuthorId = member.Id,
-            Status = EventStatus.Pending,
-            ImageBlobName = $"{member.Id}/flyer.png"
-        });
-        await db.SaveChangesAsync();
-
         var blob = new FakeBlobService();
-        var result = await CreateSubject(db, blob).ListMine(CreateRequest(member.ProviderUserId, member.Email!));
+        var result = await CreateSubject(db, blob).Create(CreateRequest(
+            member.ProviderUserId,
+            member.Email!,
+            new
+            {
+                title = "Sommerfest",
+                description = "Am Dorfplatz",
+                category = "Vereine",
+                imageBlobName = $"{member.Id}/flyer.png"
+            }));
 
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var payload = Assert.IsType<EventDto[]>(ok.Value);
-        var item = Assert.Single(payload);
-        Assert.Equal($"https://cdn.example/{member.Id}/flyer.png", item.ImageUrl);
-        Assert.Equal($"{member.Id}/flyer.png", item.ImageBlobName);
+        var created = Assert.IsType<CreatedResult>(result);
+        var payload = Assert.IsType<EventDto>(created.Value);
+        Assert.Equal($"https://cdn.example/{member.Id}/flyer.png", payload.ImageUrl);
+        Assert.Equal($"{member.Id}/flyer.png", payload.ImageBlobName);
     }
 
     [Fact]

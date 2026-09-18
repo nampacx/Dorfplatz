@@ -40,7 +40,7 @@ function MyEvents() {
         {data.map((e) => (
           <article
             key={e.id}
-            className="card card-clickable"
+            className={`card card-clickable event-card${e.imageUrl ? ' event-card-image' : ''}`}
             role="button"
             tabIndex={0}
             aria-label={`${e.title} – Details ansehen`}
@@ -52,10 +52,35 @@ function MyEvents() {
               }
             }}
           >
-            <span className={`badge ${e.status.toLowerCase()}`}>{STATUS_LABELS[e.status]}</span>
-            <h3>{e.title}</h3>
-            {e.status === 'Rejected' && e.rejectionReason && (
-              <div className="notice error" style={{ marginTop: '0.5rem' }}>Grund: {e.rejectionReason}</div>
+            {e.imageUrl ? (
+              <>
+                <img
+                  className="event-card-media"
+                  src={e.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={800}
+                  height={1000}
+                />
+                <div className="event-card-footer">
+                  <div className="event-card-badges">
+                    <span className={`badge ${e.status.toLowerCase()}`}>{STATUS_LABELS[e.status]}</span>
+                  </div>
+                  <h3>{e.title}</h3>
+                  {e.status === 'Rejected' && e.rejectionReason && (
+                    <div className="notice error" style={{ marginTop: '0.5rem' }}>Grund: {e.rejectionReason}</div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <span className={`badge ${e.status.toLowerCase()}`}>{STATUS_LABELS[e.status]}</span>
+                <h3>{e.title}</h3>
+                {e.status === 'Rejected' && e.rejectionReason && (
+                  <div className="notice error" style={{ marginTop: '0.5rem' }}>Grund: {e.rejectionReason}</div>
+                )}
+              </>
             )}
           </article>
         ))}
