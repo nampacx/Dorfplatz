@@ -67,7 +67,7 @@ public sealed class AdminFunctionsTests : IDisposable
         var payload = Assert.IsType<AdminUsersPageDto>(ok.Value);
         Assert.Equal(2, payload.TotalCount);
         Assert.Equal(
-            ["anna@example.com", "anna.blocked@example.com"],
+            ["anna.blocked@example.com", "anna@example.com"],
             payload.Items.Select(item => item.Email).ToArray());
     }
 
