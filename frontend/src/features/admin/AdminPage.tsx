@@ -64,7 +64,7 @@ function buildMembersPath({
 
 function MaterialIcon({ path }: { path: string }) {
   return (
-    <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d={path} />
     </svg>
   )
