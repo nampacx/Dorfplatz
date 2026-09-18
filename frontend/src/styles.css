@@ -266,7 +266,8 @@ a { color: var(--blue); text-decoration: none; }
 .admin-member-name { font-weight: 600; overflow-wrap: anywhere; }
 .admin-member-email { color: var(--ink-soft); font-size: var(--fs-sm); overflow-wrap: anywhere; }
 .admin-role-list { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
-.admin-table-actions { min-width: 12rem; }
+.icon-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: nowrap; }
+.admin-table-actions { min-width: 0; }
 .brand {
   display: flex; align-items: center; gap: var(--sp-2);
   font-weight: 800; font-size: var(--fs-base); color: #fff;
@@ -462,6 +463,17 @@ a { color: var(--blue); text-decoration: none; }
 /* "small" is a desktop density affordance: on touch it keeps the full target
    height and only the type shrinks. */
 .btn.small { font-size: var(--fs-eyebrow); padding: var(--sp-1) var(--sp-3); }
+.btn.icon-btn {
+  width: var(--control-h); min-width: var(--control-h);
+  padding: 0; flex: 0 0 auto;
+}
+.btn.icon-btn.secondary {
+  background: var(--blue-tint); border-color: var(--line-strong); color: var(--blue);
+}
+.btn.icon-btn.danger {
+  background: var(--red-tint); border-color: var(--red); color: var(--red);
+}
+.btn.icon-btn svg { width: 1.25rem; height: 1.25rem; fill: currentColor; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ---- Forms ------------------------------------------------------------- */
