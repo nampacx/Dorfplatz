@@ -68,7 +68,7 @@ public sealed class AdminFunctionsTests : IDisposable
         Assert.Equal(2, payload.TotalCount);
         Assert.Equal(
             ["anna.blocked@example.com", "anna@example.com"],
-            payload.Items.Select(item => item.Email).ToArray());
+            payload.Items.Select(item => item.Email!).ToArray());
     }
 
     [Fact]
