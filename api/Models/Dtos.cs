@@ -55,6 +55,7 @@ public record MessageDto(Guid Id, Guid ConversationId, Guid SenderId, string Sen
 // ---- Admin ----
 public record AdminUserDto(Guid Id, string? Email, string? DisplayName, string[] Roles,
     string Status, DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt, string? StatusReason);
+public record AdminUsersPageDto(AdminUserDto[] Items, int TotalCount, int Page, int PageSize);
 public record UpdateRolesRequest(string Role, bool Grant);
 
 /// <summary>

@@ -20,6 +20,9 @@ namespace BulletinBoard.Api.Functions;
 /// </summary>
 public class AdminFunctions
 {
+    internal const int DefaultMembersPageSize = 20;
+    internal const int MaxMembersPageSize = 200;
+
     private readonly AppDbContext _db;
     private readonly CurrentUserService _users;
     private readonly AuditService _audit;
@@ -40,16 +43,48 @@ public class AdminFunctions
         if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
         if (!CurrentUserService.IsAdmin(me)) return HttpResults.Forbidden();
 
-        var users = await _db.Users.Include(u => u.Roles)
-            .Where(u => u.DeletedAt == null)
-            .OrderBy(u => u.Email)
+        if (!TryReadPositiveInt(req.Query["page"], 1, out var page))
+            return new BadRequestObjectResult("Page must be a positive whole number.");
+        if (!TryReadPositiveInt(req.Query["pageSize"], DefaultMembersPageSize, out var pageSize))
+            return new BadRequestObjectResult("Page size must be a positive whole number.");
+        pageSize = Math.Min(pageSize, MaxMembersPageSize);
+
+        if (!TryParseStatuses(req.Query["statuses"], out var statuses))
+            return new BadRequestObjectResult("Statuses must be a comma-separated list of Pending, Approved, Rejected or Suspended.");
+
+        var search = NormalizeSearch(req.Query["search"]);
+
+        var query = _db.Users.AsNoTracking()
+            .Where(u => u.DeletedAt == null);
+
+        if (search is not null)
+        {
+            var normalizedSearch = search.ToLowerInvariant();
+            query = query.Where(u =>
+                (u.DisplayName ?? string.Empty).ToLower().Contains(normalizedSearch) ||
+                (u.Email ?? string.Empty).ToLower().Contains(normalizedSearch));
+        }
+
+        if (statuses.Length > 0)
+            query = query.Where(u => statuses.Contains(u.Status));
+
+        var totalCount = await query.CountAsync();
+
+        var orderedQuery = statuses is [AccessStatus.Pending]
+            ? query.OrderBy(u => u.CreatedAt).ThenBy(u => u.Email)
+            : query.OrderBy(u => u.Email).ThenBy(u => u.DisplayName);
+
+        var users = await orderedQuery
+            .Include(u => u.Roles)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        var dtos = users.Select(u => new AdminUserDto(
-            u.Id, u.Email, u.DisplayName,
-            CurrentUserService.EffectiveRoles(u).ToArray(),
-            u.Status.ToString(), u.CreatedAt, u.DecidedAt, u.StatusReason));
-        return new OkObjectResult(dtos);
+        return new OkObjectResult(new AdminUsersPageDto(
+            users.Select(ToAdminUserDto).ToArray(),
+            totalCount,
+            page,
+            pageSize));
     }
 
     /// <summary>Grant or revoke a role (moderator/admin). Admin only; audit-logged.</summary>
@@ -103,9 +138,7 @@ public class AdminFunctions
 
         // Re-read rather than trusting the collection loaded before the change.
         await _db.Entry(target).Collection(t => t.Roles).LoadAsync();
-        var roles = CurrentUserService.EffectiveRoles(target).ToArray();
-        return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName, roles,
-            target.Status.ToString(), target.CreatedAt, target.DecidedAt, target.StatusReason));
+        return new OkObjectResult(ToAdminUserDto(target));
     }
 
     /// <summary>
@@ -192,8 +225,58 @@ public class AdminFunctions
 
         await _db.SaveChangesAsync();
 
-        return new OkObjectResult(new AdminUserDto(target.Id, target.Email, target.DisplayName,
-            CurrentUserService.EffectiveRoles(target).ToArray(),
-            target.Status.ToString(), target.CreatedAt, target.DecidedAt, target.StatusReason));
+        return new OkObjectResult(ToAdminUserDto(target));
+    }
+
+    internal static AdminUserDto ToAdminUserDto(AppUser user) => new(
+        user.Id,
+        user.Email,
+        user.DisplayName,
+        CurrentUserService.EffectiveRoles(user).ToArray(),
+        user.Status.ToString(),
+        user.CreatedAt,
+        user.DecidedAt,
+        user.StatusReason);
+
+    internal static string? NormalizeSearch(string? search) =>
+        string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+
+    internal static bool TryParseStatuses(string? raw, out AccessStatus[] statuses)
+    {
+        statuses = Array.Empty<AccessStatus>();
+        if (string.IsNullOrWhiteSpace(raw)) return true;
+
+        var parsed = new List<AccessStatus>();
+        foreach (var value in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Enum.TryParse<AccessStatus>(value, ignoreCase: true, out var status))
+            {
+                statuses = Array.Empty<AccessStatus>();
+                return false;
+            }
+
+            if (!parsed.Contains(status))
+                parsed.Add(status);
+        }
+
+        statuses = parsed.ToArray();
+        return true;
+    }
+
+    internal static bool TryReadPositiveInt(string? raw, int defaultValue, out int value)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        if (!int.TryParse(raw, out value) || value < 1)
+        {
+            value = defaultValue;
+            return false;
+        }
+
+        return true;
     }
 }

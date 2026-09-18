@@ -9,6 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="BulletinBoard.Api.Tests/**/*.cs" />
+    <EmbeddedResource Remove="BulletinBoard.Api.Tests/**/*.resx" />
+    <None Remove="BulletinBoard.Api.Tests/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Functions isolated worker -->
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.22.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.17.4" />

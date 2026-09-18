@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import ProviderButtons from '../auth/ProviderButtons'
@@ -100,14 +100,22 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const runId = useRef(0)
 
   const reload = () => {
+    const currentRun = ++runId.current
     setLoading(true)
     setError(null)
     fn()
-      .then(setData)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
+      .then((value) => {
+        if (runId.current === currentRun) setData(value)
+      })
+      .catch((e: Error) => {
+        if (runId.current === currentRun) setError(e.message)
+      })
+      .finally(() => {
+        if (runId.current === currentRun) setLoading(false)
+      })
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
