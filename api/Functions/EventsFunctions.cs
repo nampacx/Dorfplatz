@@ -15,17 +15,24 @@ namespace BulletinBoard.Api.Functions;
 public class EventsFunctions
 {
     private const int MaxExportDays = 90;
+    private static readonly TimeSpan UploadTtl = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan ReadTtl = TimeSpan.FromHours(1);
+    private static readonly string[] AllowedEventImageContentTypes =
+        { "image/jpeg", "image/jpg", "image/png", "image/svg+xml", "image/gif" };
+    private const long MaxEventImageBytes = 512 * 1024;
     private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
     private static readonly TimeZoneInfo BoardTimeZone = ResolveBoardTimeZone();
     private readonly AppDbContext _db;
     private readonly CurrentUserService _users;
     private readonly AuditService _audit;
+    private readonly BlobService _blob;
 
-    public EventsFunctions(AppDbContext db, CurrentUserService users, AuditService audit)
+    public EventsFunctions(AppDbContext db, CurrentUserService users, AuditService audit, BlobService blob)
     {
         _db = db;
         _users = users;
         _audit = audit;
+        _blob = blob;
     }
 
     /// <summary>Only the author (or an admin) may change a submission.</summary>
@@ -44,6 +51,27 @@ public class EventsFunctions
     private static bool MaySeeSubmissionInfo(AppUser? viewer) =>
         viewer is not null
         && (CurrentUserService.IsInRole(viewer, Roles.Moderator) || CurrentUserService.IsAdmin(viewer));
+
+    private static (string? ExternalImageUrl, string? ImageBlobName, string? Error) ParseImageReference(
+        string? imageUrl,
+        string? imageBlobName)
+    {
+        var normalizedUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
+        var normalizedBlobName = string.IsNullOrWhiteSpace(imageBlobName) ? null : imageBlobName.Trim();
+
+        if (normalizedUrl is not null && normalizedBlobName is not null)
+            return (null, null, "Provide either an image URL or an uploaded image, not both.");
+
+        if (normalizedUrl is not null
+            && (!Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
+            return (null, null, "The image URL must start with http:// or https://.");
+
+        return (normalizedUrl, normalizedBlobName, null);
+    }
+
+    private static bool BlobBelongsToUser(Guid userId, string blobName) =>
+        blobName.StartsWith($"{userId}/", StringComparison.Ordinal);
 
     private static TimeZoneInfo ResolveBoardTimeZone()
     {
@@ -491,11 +519,26 @@ public class EventsFunctions
         return BuildPdf(pages);
     }
 
-    private static EventDto Map(EventPost e, AppUser? viewer = null) => new(
+    private async Task<string?> ResolveImageUrlAsync(EventPost e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.ImageBlobName))
+            return await _blob.CreateReadUrlAsync(e.ImageBlobName, ReadTtl);
+        return string.IsNullOrWhiteSpace(e.ExternalImageUrl) ? null : e.ExternalImageUrl;
+    }
+
+    private async Task DeleteStoredImageAsync(string? imageBlobName)
+    {
+        if (!string.IsNullOrWhiteSpace(imageBlobName))
+            await _blob.DeleteAsync(imageBlobName);
+    }
+
+    private async Task<EventDto> MapAsync(EventPost e, AppUser? viewer = null) => new(
         e.Id, e.Title, e.Description, e.EventDate, e.EndDate, e.Location, e.Category.ToString(),
         e.Status.ToString(), e.RejectionReason,
         MaySeeSubmissionInfo(viewer) ? e.Author?.DisplayName ?? "Unknown" : null,
         MaySeeSubmissionInfo(viewer) ? e.CreatedAt : null,
+        await ResolveImageUrlAsync(e),
+        MayEdit(e, viewer) ? e.ImageBlobName : null,
         MayEdit(e, viewer));
 
     /// <summary>
@@ -531,7 +574,7 @@ public class EventsFunctions
             .OrderByDescending(e => e.EventDate ?? e.CreatedAt)
             .Take(200)
             .ToListAsync();
-        return new OkObjectResult(items.Select(e => Map(e, viewer)));
+        return new OkObjectResult(await Task.WhenAll(items.Select(e => MapAsync(e, viewer))));
     }
 
     /// <summary>The caller's own events (any status), so they can see moderation outcomes.</summary>
@@ -548,7 +591,32 @@ public class EventsFunctions
             .Where(e => e.DeletedAt == null && e.AuthorId == me.Id)
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync();
-        return new OkObjectResult(items.Select(e => Map(e, me)));
+        return new OkObjectResult(await Task.WhenAll(items.Select(e => MapAsync(e, me))));
+    }
+
+    /// <summary>Issue a short-lived SAS upload URL; the browser PUTs one event image directly to Blob.</summary>
+    [Function("CreateEventUploads")]
+    public async Task<IActionResult> Uploads(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "events/uploads")] HttpRequest req)
+    {
+        var me = await _users.GetOrCreateUserAsync(req);
+        if (me is null) return new UnauthorizedResult();
+        if (!CurrentUserService.IsApproved(me)) return HttpResults.PendingApproval();
+
+        var body = await req.ReadJsonAsync<UploadRequest>();
+        if (body is null || body.Files.Count != 1)
+            return new BadRequestObjectResult("Provide exactly 1 file.");
+
+        var file = body.Files[0];
+        if (!AllowedEventImageContentTypes.Contains(file.ContentType))
+            return new BadRequestObjectResult("Event images must be JPG, PNG, SVG or GIF.");
+        if (file.SizeBytes <= 0 || file.SizeBytes > MaxEventImageBytes)
+            return new BadRequestObjectResult("Event images must be smaller than 512 KB.");
+
+        var ext = string.IsNullOrWhiteSpace(file.Extension) ? ".jpg" : file.Extension;
+        var blobName = _blob.NewBlobName(me.Id, ext);
+        var url = await _blob.CreateUploadUrlAsync(blobName, UploadTtl);
+        return new OkObjectResult(new[] { new UploadSlot(blobName, url) });
     }
 
     /// <summary>Any authenticated user may submit; the event starts as Pending.</summary>
@@ -571,6 +639,10 @@ public class EventsFunctions
             : EventCategory.Sonstiges;
         var scheduleError = ValidateSchedule(body.EventDate, body.EndDate);
         if (scheduleError is not null) return new BadRequestObjectResult(scheduleError);
+        var (externalImageUrl, imageBlobName, imageError) = ParseImageReference(body.ImageUrl, body.ImageBlobName);
+        if (imageError is not null) return new BadRequestObjectResult(imageError);
+        if (imageBlobName is not null && !BlobBelongsToUser(me.Id, imageBlobName))
+            return new BadRequestObjectResult("Uploaded event images must belong to the current user.");
 
         var e = new EventPost
         {
@@ -579,6 +651,8 @@ public class EventsFunctions
             EventDate = body.EventDate,
             EndDate = body.EndDate,
             Location = body.Location?.Trim(),
+            ExternalImageUrl = externalImageUrl,
+            ImageBlobName = imageBlobName,
             Category = category,
             AuthorId = me.Id,
             Status = EventStatus.Pending
@@ -587,7 +661,7 @@ public class EventsFunctions
         await _db.SaveChangesAsync();
 
         e.Author = me;
-        return new CreatedResult($"/api/events/{e.Id}", Map(e, me));
+        return new CreatedResult($"/api/events/{e.Id}", await MapAsync(e, me));
     }
 
     /// <summary>
@@ -619,12 +693,19 @@ public class EventsFunctions
             : EventCategory.Sonstiges;
         var scheduleError = ValidateSchedule(body.EventDate, body.EndDate);
         if (scheduleError is not null) return new BadRequestObjectResult(scheduleError);
+        var (externalImageUrl, imageBlobName, imageError) = ParseImageReference(body.ImageUrl, body.ImageBlobName);
+        if (imageError is not null) return new BadRequestObjectResult(imageError);
+        if (imageBlobName is not null && !BlobBelongsToUser(me.Id, imageBlobName))
+            return new BadRequestObjectResult("Uploaded event images must belong to the current user.");
 
+        var previousBlobName = e.ImageBlobName;
         e.Title = body.Title.Trim();
         e.Description = body.Description.Trim();
         e.EventDate = body.EventDate;
         e.EndDate = body.EndDate;
         e.Location = body.Location?.Trim();
+        e.ExternalImageUrl = externalImageUrl;
+        e.ImageBlobName = imageBlobName;
         e.Category = category;
         e.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -634,10 +715,13 @@ public class EventsFunctions
         e.ModeratedById = null;
         e.ModeratedAt = null;
 
+        if (!string.Equals(previousBlobName, e.ImageBlobName, StringComparison.Ordinal))
+            await DeleteStoredImageAsync(previousBlobName);
+
         _audit.Record("event.resubmit", me.Id, "event", e.Id, new { from = previousStatus.ToString() });
         await _db.SaveChangesAsync();
 
-        return new OkObjectResult(Map(e, me));
+        return new OkObjectResult(await MapAsync(e, me));
     }
 
     /// <summary>Withdraw a submission. Author or admin only; soft delete.</summary>
@@ -654,6 +738,7 @@ public class EventsFunctions
         if (e is null) return new NotFoundResult();
         if (!MayEdit(e, me)) return HttpResults.Forbidden();
 
+        await DeleteStoredImageAsync(e.ImageBlobName);
         e.DeletedAt = DateTimeOffset.UtcNow;
         _audit.Record("event.delete", me.Id, "event", e.Id);
         await _db.SaveChangesAsync();
@@ -675,7 +760,7 @@ public class EventsFunctions
             .Where(e => e.DeletedAt == null && e.Status == EventStatus.Pending)
             .OrderBy(e => e.CreatedAt)
             .ToListAsync();
-        return new OkObjectResult(items.Select(e => Map(e, me)));
+        return new OkObjectResult(await Task.WhenAll(items.Select(e => MapAsync(e, me))));
     }
 
     [Function("ExportEventsPdf")]
@@ -730,7 +815,7 @@ public class EventsFunctions
         e.UpdatedAt = DateTimeOffset.UtcNow;
         _audit.Record("event.approve", me.Id, "event", e.Id);
         await _db.SaveChangesAsync();
-        return new OkObjectResult(Map(e, me));
+        return new OkObjectResult(await MapAsync(e, me));
     }
 
     [Function("RejectEvent")]
@@ -757,6 +842,6 @@ public class EventsFunctions
         e.UpdatedAt = DateTimeOffset.UtcNow;
         _audit.Record("event.reject", me.Id, "event", e.Id, new { reason = e.RejectionReason });
         await _db.SaveChangesAsync();
-        return new OkObjectResult(Map(e, me));
+        return new OkObjectResult(await MapAsync(e, me));
     }
 }

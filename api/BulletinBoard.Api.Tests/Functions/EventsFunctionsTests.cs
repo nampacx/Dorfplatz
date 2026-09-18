@@ -1,0 +1,234 @@
+using System.Text;
+using System.Text.Json;
+using BulletinBoard.Api.Auth;
+using BulletinBoard.Api.Data;
+using BulletinBoard.Api.Data.Entities;
+using BulletinBoard.Api.Functions;
+using BulletinBoard.Api.Models;
+using BulletinBoard.Api.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Xunit;
+
+namespace BulletinBoard.Api.Tests.Functions;
+
+public sealed class EventsFunctionsTests : IDisposable
+{
+    private readonly SqliteConnection _connection;
+    private readonly DbContextOptions<AppDbContext> _options;
+
+    public EventsFunctionsTests()
+    {
+        _connection = new SqliteConnection("Data Source=:memory:");
+        _connection.Open();
+        _options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(_connection)
+            .Options;
+
+        using var db = CreateDb();
+        db.Database.EnsureCreated();
+    }
+
+    [Fact]
+    public async Task Create_StoresExternalImageUrl()
+    {
+        await using var db = CreateDb();
+        var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
+
+        var result = await CreateSubject(db).Create(CreateRequest(
+            member.ProviderUserId,
+            member.Email!,
+            new
+            {
+                title = "Sommerfest",
+                description = "Am Dorfplatz",
+                category = "Vereine",
+                imageUrl = " https://example.com/flyer.png "
+            }));
+
+        var created = Assert.IsType<CreatedResult>(result);
+        var payload = Assert.IsType<EventDto>(created.Value);
+        Assert.Equal("https://example.com/flyer.png", payload.ImageUrl);
+        Assert.Null(payload.ImageBlobName);
+
+        var stored = await db.Events.SingleAsync();
+        Assert.Equal("https://example.com/flyer.png", stored.ExternalImageUrl);
+        Assert.Null(stored.ImageBlobName);
+    }
+
+    [Fact]
+    public async Task Create_RejectsConflictingImageSources()
+    {
+        await using var db = CreateDb();
+        var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
+
+        var result = await CreateSubject(db).Create(CreateRequest(
+            member.ProviderUserId,
+            member.Email!,
+            new
+            {
+                title = "Sommerfest",
+                description = "Am Dorfplatz",
+                imageUrl = "https://example.com/flyer.png",
+                imageBlobName = $"{member.Id}/flyer.png"
+            }));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("Provide either an image URL or an uploaded image, not both.", badRequest.Value);
+    }
+
+    [Fact]
+    public async Task ListMine_ReturnsSignedImageUrlAndEditableBlobName()
+    {
+        await using var db = CreateDb();
+        var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
+        db.Events.Add(new EventPost
+        {
+            Title = "Sommerfest",
+            Description = "Am Dorfplatz",
+            Category = EventCategory.Vereine,
+            AuthorId = member.Id,
+            Status = EventStatus.Pending,
+            ImageBlobName = $"{member.Id}/flyer.png"
+        });
+        await db.SaveChangesAsync();
+
+        var blob = new FakeBlobService();
+        var result = await CreateSubject(db, blob).ListMine(CreateRequest(member.ProviderUserId, member.Email!));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<EventDto[]>(ok.Value);
+        var item = Assert.Single(payload);
+        Assert.Equal($"https://cdn.example/{member.Id}/flyer.png", item.ImageUrl);
+        Assert.Equal($"{member.Id}/flyer.png", item.ImageBlobName);
+    }
+
+    [Fact]
+    public async Task Update_ReplacingUploadedImage_DeletesOldBlob()
+    {
+        await using var db = CreateDb();
+        var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
+        var existing = new EventPost
+        {
+            Title = "Sommerfest",
+            Description = "Alt",
+            Category = EventCategory.Vereine,
+            AuthorId = member.Id,
+            Status = EventStatus.Published,
+            ImageBlobName = $"{member.Id}/old.png"
+        };
+        db.Events.Add(existing);
+        await db.SaveChangesAsync();
+
+        var blob = new FakeBlobService();
+        var result = await CreateSubject(db, blob).Update(CreateRequest(
+            member.ProviderUserId,
+            member.Email!,
+            new
+            {
+                title = "Sommerfest",
+                description = "Neu",
+                category = "Vereine",
+                imageUrl = "https://example.com/new.png"
+            }),
+            existing.Id);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<EventDto>(ok.Value);
+        Assert.Equal("https://example.com/new.png", payload.ImageUrl);
+        Assert.Null(payload.ImageBlobName);
+        Assert.Contains($"{member.Id}/old.png", blob.DeletedBlobNames);
+
+        var stored = await db.Events.SingleAsync();
+        Assert.Equal("https://example.com/new.png", stored.ExternalImageUrl);
+        Assert.Null(stored.ImageBlobName);
+        Assert.Equal(EventStatus.Pending, stored.Status);
+    }
+
+    [Fact]
+    public async Task Uploads_RejectsFilesOver512Kilobytes()
+    {
+        await using var db = CreateDb();
+        var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
+
+        var result = await CreateSubject(db).Uploads(CreateRequest(
+            member.ProviderUserId,
+            member.Email!,
+            new
+            {
+                files = new[]
+                {
+                    new { contentType = "image/png", sizeBytes = 600 * 1024, extension = ".png" }
+                }
+            }));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("Event images must be smaller than 512 KB.", badRequest.Value);
+    }
+
+    public void Dispose() => _connection.Dispose();
+
+    private AppDbContext CreateDb() => new(_options);
+
+    private EventsFunctions CreateSubject(AppDbContext db, BlobService? blob = null) =>
+        new(db, new CurrentUserService(db), new AuditService(db), blob ?? new FakeBlobService());
+
+    private static HttpRequest CreateRequest(string providerUserId, string email, object? body = null, string queryString = "")
+    {
+        var principal = new ClientPrincipal
+        {
+            IdentityProvider = "aad",
+            UserId = providerUserId,
+            UserDetails = email,
+            UserRoles = ["authenticated"]
+        };
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers["x-ms-client-principal"] =
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(principal)));
+        context.Request.QueryString = new QueryString(queryString);
+
+        if (body is not null)
+        {
+            var json = JsonSerializer.Serialize(body);
+            context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            context.Request.ContentLength = context.Request.Body.Length;
+            context.Request.ContentType = "application/json";
+        }
+
+        return context.Request;
+    }
+
+    private static async Task<AppUser> SeedApprovedMemberAsync(AppDbContext db, string providerUserId, string email)
+    {
+        var member = new AppUser
+        {
+            ProviderUserId = providerUserId,
+            Email = email,
+            DisplayName = "Mitglied",
+            Status = AccessStatus.Approved
+        };
+        db.Users.Add(member);
+        await db.SaveChangesAsync();
+        return member;
+    }
+
+    private sealed class FakeBlobService : BlobService
+    {
+        public List<string> DeletedBlobNames { get; } = [];
+
+        public override Task<string> CreateUploadUrlAsync(string blobName, TimeSpan validFor) =>
+            Task.FromResult($"https://upload.example/{blobName}");
+
+        public override Task<string> CreateReadUrlAsync(string blobName, TimeSpan validFor) =>
+            Task.FromResult($"https://cdn.example/{blobName}");
+
+        public override Task DeleteAsync(string blobName)
+        {
+            DeletedBlobNames.Add(blobName);
+            return Task.CompletedTask;
+        }
+    }
+}

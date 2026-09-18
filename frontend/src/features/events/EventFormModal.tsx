@@ -1,9 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import { ErrorNotice } from '../../components/Common'
 import Sheet from '../../components/Sheet'
-import { EVENT_CATEGORIES, type EventCategory, type EventPost } from '../../types'
+import { EVENT_CATEGORIES, type EventCategory, type EventPost, type UploadSlot } from '../../types'
 import { combineDateAndTime, toDateInputValue, toTimeInputValue } from './schedule'
+
+const EVENT_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/gif']
+const MAX_EVENT_IMAGE_BYTES = 512 * 1024
+
+function validateImageFile(file: File) {
+  if (!EVENT_IMAGE_TYPES.includes(file.type)) return 'Erlaubt sind JPG, PNG, SVG und GIF.'
+  if (file.size > MAX_EVENT_IMAGE_BYTES) return 'Das Bild darf höchstens 512 KB groß sein.'
+  return null
+}
+
+async function uploadImage(file: File): Promise<string> {
+  const [slot] = await api.post<UploadSlot[]>('/events/uploads', {
+    files: [{
+      contentType: file.type,
+      sizeBytes: file.size,
+      extension: file.name.slice(file.name.lastIndexOf('.')) || '.jpg',
+    }],
+  })
+
+  await fetch(slot.uploadUrl, {
+    method: 'PUT',
+    headers: { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': file.type },
+    body: file,
+  }).then((res) => {
+    if (!res.ok) throw new Error('Bild-Upload fehlgeschlagen.')
+  })
+
+  return slot.blobName
+}
 
 /**
  * Create when `existing` is omitted, otherwise edit and resubmit that event.
@@ -27,15 +56,27 @@ export default function EventFormModal({
     endTime: toTimeInputValue(existing?.endDate ?? null, 'end'),
     location: existing?.location ?? '',
     category: (existing?.category ?? 'Sonstiges') as EventCategory,
+    imageUrl: existing?.imageBlobName ? '' : existing?.imageUrl ?? '',
   })
+  const [imageBlobName, setImageBlobName] = useState<string | null>(existing?.imageBlobName ?? null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(existing?.imageUrl ?? null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!imageFile) return
+    const objectUrl = URL.createObjectURL(imageFile)
+    setPreviewUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [imageFile])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
+      const uploadedBlobName = imageFile ? await uploadImage(imageFile) : imageBlobName
       const payload = {
         title: form.title,
         description: form.description,
@@ -43,6 +84,8 @@ export default function EventFormModal({
         endDate: combineDateAndTime(form.endDate, form.endTime, { blankTimeMeansEndOfDay: true }),
         location: form.location || null,
         category: form.category,
+        imageUrl: imageFile ? null : form.imageUrl.trim() || null,
+        imageBlobName: uploadedBlobName,
       }
       if (existing) await api.patch(`/events/${existing.id}`, payload)
       else await api.post('/events', payload)
@@ -89,6 +132,64 @@ export default function EventFormModal({
           <label>Beschreibung</label>
           <textarea required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
+        <div className="field">
+          <label>Bild-URL</label>
+          <input
+            type="url"
+            placeholder="https://…"
+            value={form.imageUrl}
+            onChange={(e) => {
+              const nextUrl = e.target.value
+              setForm({ ...form, imageUrl: nextUrl })
+              setImageBlobName(null)
+              setImageFile(null)
+              setPreviewUrl(nextUrl.trim() || null)
+            }}
+          />
+          <small>Alternativ zum Upload. Erlaubt sind JPG, PNG, SVG und GIF bis 512 KB.</small>
+        </div>
+        <div className="field">
+          <label>Bild hochladen</label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/svg+xml,image/gif"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              const fileError = validateImageFile(file)
+              if (fileError) {
+                setError(fileError)
+                e.target.value = ''
+                return
+              }
+              setError(null)
+              setForm((current) => ({ ...current, imageUrl: '' }))
+              setImageBlobName(null)
+              setImageFile(file)
+            }}
+          />
+          <small>Der Upload passiert zusammen mit dem Einreichen.</small>
+        </div>
+        {previewUrl && (
+          <div className="field">
+            <label>Vorschau</label>
+            <div className="image-preview">
+              <img src={previewUrl} alt="Bildvorschau" />
+            </div>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => {
+                setForm((current) => ({ ...current, imageUrl: '' }))
+                setImageBlobName(null)
+                setImageFile(null)
+                setPreviewUrl(null)
+              }}
+            >
+              Bild entfernen
+            </button>
+          </div>
+        )}
         <div className="row">
           <div className="field">
             <label>Startdatum</label>

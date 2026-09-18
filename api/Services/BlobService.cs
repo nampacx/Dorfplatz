@@ -21,6 +21,12 @@ public class BlobService
         { "image/jpeg", "image/png", "image/webp", "image/gif" };
     public const long MaxBytes = 10 * 1024 * 1024; // 10 MB
 
+    protected BlobService()
+    {
+        _service = default!;
+        _container = default!;
+    }
+
     public BlobService(IConfiguration config)
     {
         var containerName = config["Blob:ContainerName"] ?? "listing-images";
@@ -47,24 +53,24 @@ public class BlobService
         }
     }
 
-    public string NewBlobName(Guid ownerId, string extension) =>
+    public virtual string NewBlobName(Guid ownerId, string extension) =>
         $"{ownerId}/{Guid.NewGuid():N}{extension}";
 
     /// <summary>A write-only SAS the browser uses to PUT the image.</summary>
-    public async Task<string> CreateUploadUrlAsync(string blobName, TimeSpan validFor)
+    public virtual async Task<string> CreateUploadUrlAsync(string blobName, TimeSpan validFor)
     {
         var blob = _container.GetBlobClient(blobName);
         return await CreateSasAsync(blob, BlobSasPermissions.Write | BlobSasPermissions.Create, validFor);
     }
 
     /// <summary>A read-only SAS used to render an image.</summary>
-    public async Task<string> CreateReadUrlAsync(string blobName, TimeSpan validFor)
+    public virtual async Task<string> CreateReadUrlAsync(string blobName, TimeSpan validFor)
     {
         var blob = _container.GetBlobClient(blobName);
         return await CreateSasAsync(blob, BlobSasPermissions.Read, validFor);
     }
 
-    public async Task DeleteAsync(string blobName) =>
+    public virtual async Task DeleteAsync(string blobName) =>
         await _container.DeleteBlobIfExistsAsync(blobName);
 
     private async Task<string> CreateSasAsync(BlobClient blob, BlobSasPermissions permissions, TimeSpan validFor)

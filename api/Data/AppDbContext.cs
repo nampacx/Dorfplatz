@@ -50,6 +50,8 @@ public class AppDbContext : DbContext
             // (Verwaltung) as "unset" and silently store Sonstiges instead. Existing
             // rows are backfilled by the migration instead.
             e.Property(x => x.Category).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.ExternalImageUrl).HasMaxLength(1000);
+            e.Property(x => x.ImageBlobName).HasMaxLength(300);
             e.Property(x => x.RejectionReason).HasMaxLength(1000);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.Category);

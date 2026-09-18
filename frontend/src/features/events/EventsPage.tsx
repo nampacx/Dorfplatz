@@ -130,7 +130,7 @@ export default function EventsPage() {
           {data.map((e) => (
             <article
               key={e.id}
-              className="card card-clickable"
+              className={`card card-clickable event-card${e.imageUrl ? ' event-card-image' : ''}`}
               role="button"
               tabIndex={0}
               aria-label={`${e.title} – Details ansehen`}
@@ -142,14 +142,41 @@ export default function EventsPage() {
                 }
               }}
             >
-              <span className="badge category">{e.category}</span>
-              {isPast(e.eventDate, e.endDate) && <span className="badge past">Vorbei</span>}
-              <h3>{e.title}</h3>
-              <div className="desc desc-clamp">{e.description}</div>
-              <div className="meta">
-                <span>{[formatSchedule(e.eventDate, e.endDate), e.location].filter(Boolean).join(' · ')}</span>
-                {isModerator && <span>{e.authorName}</span>}
-              </div>
+              {e.imageUrl ? (
+                <>
+                  <img
+                    className="event-card-media"
+                    src={e.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width={800}
+                    height={1000}
+                  />
+                  <div className="event-card-footer">
+                    <div className="event-card-badges">
+                      <span className="badge category">{e.category}</span>
+                      {isPast(e.eventDate, e.endDate) && <span className="badge past">Vorbei</span>}
+                    </div>
+                    <h3>{e.title}</h3>
+                    <div className="meta">
+                      <span>{[formatSchedule(e.eventDate, e.endDate), e.location].filter(Boolean).join(' · ')}</span>
+                      {isModerator && e.authorName && <span>{e.authorName}</span>}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="badge category">{e.category}</span>
+                  {isPast(e.eventDate, e.endDate) && <span className="badge past">Vorbei</span>}
+                  <h3>{e.title}</h3>
+                  <div className="desc desc-clamp">{e.description}</div>
+                  <div className="meta">
+                    <span>{[formatSchedule(e.eventDate, e.endDate), e.location].filter(Boolean).join(' · ')}</span>
+                    {isModerator && e.authorName && <span>{e.authorName}</span>}
+                  </div>
+                </>
+              )}
             </article>
           ))}
         </div>

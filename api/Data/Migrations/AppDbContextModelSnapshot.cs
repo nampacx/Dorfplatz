@@ -166,11 +166,19 @@ namespace BulletinBoard.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ExternalImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<DateTimeOffset?>("EventDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("EndDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImageBlobName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<string>("Location")
                         .HasColumnType("text");

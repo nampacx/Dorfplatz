@@ -377,6 +377,15 @@ a { color: var(--blue); text-decoration: none; }
   font-family: var(--font-mono); font-size: var(--fs-eyebrow); text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--ink-soft);
 }
+.card .meta > span { min-width: 0; overflow-wrap: anywhere; }
+.event-card-image { padding: 0 0 var(--sp-5); overflow: hidden; }
+.event-card-media {
+  display: block; width: 100%; aspect-ratio: 4/5; object-fit: cover;
+  background: var(--blue-tint);
+}
+.event-card-footer { padding: var(--sp-4) 1.15rem 0; }
+.event-card-badges { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.event-card-badges .badge.past { margin-left: 0; }
 /* One rule, not one per container: it was scoped to .card and .modal, and the
    detail price silently lost its styling when .modal stopped existing. */
 .price {
@@ -886,6 +895,10 @@ body[data-chat-thread='open'] .consent {
   margin: 0.8rem 0 0.3rem; font-size: var(--fs-xl); font-weight: 800;
   letter-spacing: -0.02em; line-height: var(--lh-tight);
 }
+.event-detail-image {
+  display: block; width: 100%; max-height: 22rem; object-fit: cover;
+  border-radius: 2px; background: var(--blue-tint); margin-bottom: var(--sp-4);
+}
 
 .detail-facts {
   display: grid; grid-template-columns: auto 1fr; gap: 0.3rem var(--sp-4);
@@ -916,6 +929,19 @@ body[data-chat-thread='open'] .consent {
 .image-editor-item img {
   height: 72px; width: 72px; object-fit: cover;
   border-radius: 2px; border: 1px solid var(--line-strong);
+}
+.image-preview {
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--blue-tint);
+  margin-bottom: var(--sp-2);
+}
+.image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 18rem;
+  object-fit: cover;
 }
 .image-remove {
   position: absolute; top: -6px; right: -6px;
