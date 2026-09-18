@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../../api/client'
 import { EmptyState, ErrorNotice, Loading, RequireRole, useAsync } from '../../components/Common'
 import Sheet from '../../components/Sheet'
@@ -14,6 +14,12 @@ const STATUS_LABELS: Record<AdminUser['status'], string> = {
 const MAX_REASON = 500
 const MEMBER_PAGE_SIZE = 20
 const PENDING_PAGE_SIZE = 20
+const MATERIAL_ICON_PATHS = {
+  adminPanelSettings: 'M17 11V7.15L12 5 7 7.15V11c0 3.13 1.64 6.03 5 7.92.38-.21.75-.44 1.09-.69-.06-.4-.09-.81-.09-1.23 0-2.89 2.04-5.3 4.77-5.88.15-.36.23-.74.23-1.12Zm1 9v-2h-2v-2h2v-2h2v2h2v2h-2v2Z',
+  block: 'M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2Zm0 17c-3.87 0-7-3.13-7-7 0-1.61.55-3.1 1.47-4.29l9.82 9.82A6.95 6.95 0 0 1 12 19Zm5.53-2.71L7.71 6.47A6.95 6.95 0 0 1 12 5c3.87 0 7 3.13 7 7 0 1.61-.55 3.1-1.47 4.29Z',
+  lockOpen: 'M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm6-7h-1V7A5 5 0 0 0 7 7h2a3 3 0 1 1 6 0v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Z',
+  verifiedUser: 'M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Zm-2 14-4-4 1.41-1.41L10 12.17l6.59-6.59L18 7l-8 8Z',
+} as const
 
 const MEMBER_FILTERS: Array<{
   key: 'all' | 'Approved' | 'Rejected' | 'Suspended'
@@ -54,6 +60,38 @@ function buildMembersPath({
   if (pageSize) params.set('pageSize', String(pageSize))
   const query = params.toString()
   return query ? `/members?${query}` : '/members'
+}
+
+function MaterialIcon({ path }: { path: string }) {
+  return (
+    <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+      <path d={path} />
+    </svg>
+  )
+}
+
+function ActionIconButton({
+  label,
+  tone = 'secondary',
+  onClick,
+  children,
+}: {
+  label: string
+  tone?: 'primary' | 'secondary' | 'danger'
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={`btn small icon-btn${tone === 'primary' ? '' : ` ${tone}`}`}
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
 }
 
 /**
@@ -353,32 +391,40 @@ function UserTable({ search, reloadToken }: { search: string; reloadToken: numbe
                     </td>
                     <td>
                       {u.status === 'Rejected' ? (
-                        <div className="stack-actions admin-table-actions">
-                          <button className="btn small secondary" onClick={() => readmit(u)}>Doch freigeben</button>
+                        <div className="icon-actions admin-table-actions">
+                          <ActionIconButton label="Doch freigeben" onClick={() => readmit(u)}>
+                            <MaterialIcon path={MATERIAL_ICON_PATHS.lockOpen} />
+                          </ActionIconButton>
                         </div>
                       ) : u.status === 'Suspended' ? (
-                        <div className="stack-actions admin-table-actions">
-                          <button
-                            className="btn small"
-                            onClick={() => setPending({ user: u, decision: 'approve' })}
-                          >
-                            Freischalten
-                          </button>
+                        <div className="icon-actions admin-table-actions">
+                          <ActionIconButton label="Freischalten" onClick={() => setPending({ user: u, decision: 'approve' })}>
+                            <MaterialIcon path={MATERIAL_ICON_PATHS.lockOpen} />
+                          </ActionIconButton>
                         </div>
                       ) : (
-                        <div className="stack-actions admin-table-actions">
-                          <button className="btn small secondary" onClick={() => toggle(u, 'moderator', !isMod)}>
-                            {isMod ? 'Moderator entziehen' : 'Zum Moderator machen'}
-                          </button>
-                          <button className="btn small secondary" onClick={() => toggle(u, 'admin', !isAdmin)}>
-                            {isAdmin ? 'Admin entziehen' : 'Zum Admin machen'}
-                          </button>
-                          <button
-                            className="btn small danger"
+                        <div className="icon-actions admin-table-actions">
+                          <ActionIconButton
+                            label={isMod ? 'Moderatorrolle entziehen' : 'Zum Moderator machen'}
+                            tone="secondary"
+                            onClick={() => toggle(u, 'moderator', !isMod)}
+                          >
+                            <MaterialIcon path={MATERIAL_ICON_PATHS.verifiedUser} />
+                          </ActionIconButton>
+                          <ActionIconButton
+                            label={isAdmin ? 'Adminrolle entziehen' : 'Zum Admin machen'}
+                            tone="secondary"
+                            onClick={() => toggle(u, 'admin', !isAdmin)}
+                          >
+                            <MaterialIcon path={MATERIAL_ICON_PATHS.adminPanelSettings} />
+                          </ActionIconButton>
+                          <ActionIconButton
+                            label="Zugang entziehen"
+                            tone="danger"
                             onClick={() => setPending({ user: u, decision: 'suspend' })}
                           >
-                            Zugang entziehen
-                          </button>
+                            <MaterialIcon path={MATERIAL_ICON_PATHS.block} />
+                          </ActionIconButton>
                         </div>
                       )}
                     </td>
