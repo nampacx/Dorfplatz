@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<AdminUser['status'], string> = {
 
 const MAX_REASON = 500
 const MEMBER_PAGE_SIZE = 20
-const PENDING_PAGE_SIZE = 200
+const PENDING_PAGE_SIZE = 20
 
 const MEMBER_FILTERS: Array<{
   key: 'all' | 'Approved' | 'Rejected' | 'Suspended'
@@ -131,13 +131,23 @@ function ReasonDialog({
  * it is the one thing on this page that needs acting on rather than reading.
  */
 function ApprovalQueue({ search, reloadToken, onDecide }: { search: string; reloadToken: number; onDecide: () => void }) {
+  const [page, setPage] = useState(1)
   const { data, loading, error } = useAsync(
-    () => api.get<AdminUserPage>(buildMembersPath({ search, statuses: ['Pending'], page: 1, pageSize: PENDING_PAGE_SIZE })),
-    [search, reloadToken],
+    () => api.get<AdminUserPage>(buildMembersPath({ search, statuses: ['Pending'], page, pageSize: PENDING_PAGE_SIZE })),
+    [search, page, reloadToken],
   )
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const waiting = data?.items ?? []
+  const totalPages = Math.max(1, Math.ceil((data?.totalCount ?? 0) / PENDING_PAGE_SIZE))
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  useEffect(() => {
+    if (data && page > totalPages) setPage(totalPages)
+  }, [data, page, totalPages])
 
   async function decide(u: AdminUser, decision: AccessDecision) {
     setBusyId(u.id)
@@ -154,9 +164,32 @@ function ApprovalQueue({ search, reloadToken, onDecide }: { search: string; relo
 
   return (
     <div className="panel" style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ marginTop: 0 }}>
-        Freischalten{(data?.totalCount ?? 0) > 0 && <span className="badge pending" style={{ marginLeft: '0.5rem' }}>{data?.totalCount}</span>}
-      </h2>
+      <div className="admin-panel-head">
+        <div className="admin-panel-copy">
+          <h2 style={{ marginTop: 0 }}>
+            Freischalten{(data?.totalCount ?? 0) > 0 && <span className="badge pending" style={{ marginLeft: '0.5rem' }}>{data?.totalCount}</span>}
+          </h2>
+          <p className="u-label admin-panel-meta">
+            {data?.totalCount === 1 ? '1 wartendes Konto' : `${data?.totalCount ?? 0} wartende Konten`}
+            {data && data.totalCount > 0 && <> · Seite {data.page} von {totalPages}</>}
+          </p>
+        </div>
+        {data && data.totalCount > PENDING_PAGE_SIZE && (
+          <div className="admin-pager">
+            <button className="btn small secondary" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
+              Zurück
+            </button>
+            <p className="u-label admin-pager-status">Seite {page} / {totalPages}</p>
+            <button
+              className="btn small secondary"
+              disabled={page >= totalPages}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              Weiter
+            </button>
+          </div>
+        )}
+      </div>
       {error && <ErrorNotice message={error} />}
       {actionError && <ErrorNotice message={actionError} />}
       {loading ? (
@@ -184,11 +217,6 @@ function ApprovalQueue({ search, reloadToken, onDecide }: { search: string; relo
             </div>
           ))}
         </div>
-      )}
-      {(data?.totalCount ?? 0) > waiting.length && (
-        <p className="admin-overflow-note">
-          Es werden die ersten {waiting.length} wartenden Konten gezeigt. Verfeinere die Suche, um ältere Einträge zu finden.
-        </p>
       )}
     </div>
   )
@@ -278,6 +306,8 @@ function UserTable({ search, reloadToken }: { search: string; reloadToken: numbe
             <button
               key={option.key}
               type="button"
+              role="tab"
+              aria-selected={filter === option.key}
               className={`chip${filter === option.key ? ' active' : ''}`}
               onClick={() => setFilter(option.key)}
             >

@@ -260,14 +260,13 @@ a { color: var(--blue); text-decoration: none; }
   display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-4);
 }
 .admin-panel-copy { min-width: 0; }
-.admin-panel-meta, .admin-pager-status, .admin-overflow-note { margin: 0; }
+.admin-panel-meta, .admin-pager-status { margin: 0; }
 .admin-pager { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .admin-member-main { min-width: 0; }
 .admin-member-name { font-weight: 600; overflow-wrap: anywhere; }
 .admin-member-email { color: var(--ink-soft); font-size: var(--fs-sm); overflow-wrap: anywhere; }
 .admin-role-list { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .admin-table-actions { min-width: 12rem; }
-.admin-overflow-note { margin-top: var(--sp-3); color: var(--ink-soft); font-size: var(--fs-sm); }
 .brand {
   display: flex; align-items: center; gap: var(--sp-2);
   font-weight: 800; font-size: var(--fs-base); color: #fff;
