@@ -12,6 +12,9 @@ namespace BulletinBoard.Api.Services;
 /// </summary>
 public static class DbInitializer
 {
+    private const string NpgsqlProvider = "Npgsql.EntityFrameworkCore.PostgreSQL";
+    private const string SqliteProvider = "Microsoft.EntityFrameworkCore.Sqlite";
+
     public static async Task InitializeAsync(IServiceProvider sp)
     {
         using var scope = sp.CreateScope();
@@ -21,6 +24,7 @@ public static class DbInitializer
 
         try
         {
+            await RepairEventImageColumnsAsync(db, logger);
             await db.Database.MigrateAsync();
         }
         catch (Exception ex)
@@ -61,6 +65,61 @@ public static class DbInitializer
             db.UserRoles.Add(new UserRole { Role = Roles.Admin, UserId = existing.Id });
             await db.SaveChangesAsync();
             logger.LogInformation("Seeded admin role for {Email}", adminEmail);
+        }
+    }
+
+    private static async Task RepairEventImageColumnsAsync(AppDbContext db, ILogger logger)
+    {
+        var provider = db.Database.ProviderName;
+        if (provider == NpgsqlProvider)
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                ALTER TABLE IF EXISTS "Events" ADD COLUMN IF NOT EXISTS "ExternalImageUrl" character varying(1000);
+                ALTER TABLE IF EXISTS "Events" ADD COLUMN IF NOT EXISTS "ImageBlobName" character varying(300);
+                """);
+            return;
+        }
+
+        if (provider != SqliteProvider)
+            return;
+
+        var existingColumns = await GetSqliteColumnNamesAsync(db, "Events");
+        if (existingColumns.Count == 0)
+            return;
+        if (existingColumns.Contains("ExternalImageUrl") && existingColumns.Contains("ImageBlobName"))
+            return;
+
+        if (!existingColumns.Contains("ExternalImageUrl"))
+            await db.Database.ExecuteSqlRawAsync("""ALTER TABLE "Events" ADD COLUMN "ExternalImageUrl" TEXT NULL;""");
+        if (!existingColumns.Contains("ImageBlobName"))
+            await db.Database.ExecuteSqlRawAsync("""ALTER TABLE "Events" ADD COLUMN "ImageBlobName" TEXT NULL;""");
+
+        logger.LogInformation("Repaired missing event image columns before running migrations.");
+    }
+
+    private static async Task<HashSet<string>> GetSqliteColumnNamesAsync(AppDbContext db, string tableName)
+    {
+        var connection = db.Database.GetDbConnection();
+        var openedHere = connection.State != System.Data.ConnectionState.Open;
+        if (openedHere)
+            await connection.OpenAsync();
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"""PRAGMA table_info("{tableName}");""";
+
+            var columns = new HashSet<string>(StringComparer.Ordinal);
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                columns.Add(reader.GetString(1));
+
+            return columns;
+        }
+        finally
+        {
+            if (openedHere)
+                await connection.CloseAsync();
         }
     }
 }
