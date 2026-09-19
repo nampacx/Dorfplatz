@@ -25,8 +25,8 @@ public static class DbInitializer
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Database migration skipped/failed at startup.");
-            return;
+            logger.LogError(ex, "Database migration failed at startup.");
+            throw;
         }
 
         var adminEmail = config["Seed:AdminEmail"];
