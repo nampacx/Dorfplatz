@@ -33,6 +33,8 @@ export interface EventPost {
   rejectionReason: string | null
   authorName?: string
   createdAt?: string
+  imageUrl?: string | null
+  imageBlobName?: string | null
   /** True when the signed-in viewer may edit, resubmit or delete this event. */
   canEdit: boolean
 }

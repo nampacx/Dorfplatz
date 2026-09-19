@@ -12,6 +12,8 @@ public class EventPost
     public DateTimeOffset? EventDate { get; set; }
     public DateTimeOffset? EndDate { get; set; }
     public string? Location { get; set; }
+    public string? ExternalImageUrl { get; set; }
+    public string? ImageBlobName { get; set; }
 
     /// <summary>Existing rows predate categories, so they fall back to Sonstiges.</summary>
     public EventCategory Category { get; set; } = EventCategory.Sonstiges;

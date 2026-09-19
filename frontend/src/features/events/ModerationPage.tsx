@@ -143,7 +143,7 @@ function ModerationQueue() {
         {data.map((e) => (
           <article
             key={e.id}
-            className="card card-clickable"
+            className={`card card-clickable event-card${e.imageUrl ? ' event-card-image' : ''}`}
             role="button"
             tabIndex={0}
             aria-label={`${e.title} – vollständige Einreichung ansehen`}
@@ -155,15 +155,43 @@ function ModerationQueue() {
               }
             }}
           >
-            <span className="badge pending">Prüfung</span>
-            <h3>{e.title}</h3>
-            <div className="desc desc-clamp">{e.description}</div>
-            <div className="meta"><span>{e.location}</span><span>{e.authorName}</span></div>
-            {/* Stop propagation so acting on a card does not also open its detail view. */}
-            <div className="row" style={{ marginTop: '0.9rem' }} onClick={(ev) => ev.stopPropagation()}>
-              <button className="btn small" disabled={busyId === e.id} onClick={() => approve(e)}>Freigeben</button>
-              <button className="btn small danger" disabled={busyId === e.id} onClick={() => setRejecting(e)}>Ablehnen</button>
-            </div>
+            {e.imageUrl ? (
+              <>
+                <img
+                  className="event-card-media"
+                  src={e.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={800}
+                  height={1000}
+                />
+                <div className="event-card-footer">
+                  <div className="event-card-badges">
+                    <span className="badge pending">Prüfung</span>
+                  </div>
+                  <h3>{e.title}</h3>
+                  <div className="meta"><span>{e.location}</span><span>{e.authorName}</span></div>
+                  {/* Stop propagation so acting on a card does not also open its detail view. */}
+                  <div className="row" style={{ marginTop: '0.9rem' }} onClick={(ev) => ev.stopPropagation()}>
+                    <button className="btn small" disabled={busyId === e.id} onClick={() => approve(e)}>Freigeben</button>
+                    <button className="btn small danger" disabled={busyId === e.id} onClick={() => setRejecting(e)}>Ablehnen</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="badge pending">Prüfung</span>
+                <h3>{e.title}</h3>
+                <div className="desc desc-clamp">{e.description}</div>
+                <div className="meta"><span>{e.location}</span><span>{e.authorName}</span></div>
+                {/* Stop propagation so acting on a card does not also open its detail view. */}
+                <div className="row" style={{ marginTop: '0.9rem' }} onClick={(ev) => ev.stopPropagation()}>
+                  <button className="btn small" disabled={busyId === e.id} onClick={() => approve(e)}>Freigeben</button>
+                  <button className="btn small danger" disabled={busyId === e.id} onClick={() => setRejecting(e)}>Ablehnen</button>
+                </div>
+              </>
+            )}
           </article>
         ))}
       </div>

@@ -55,6 +55,16 @@ export default function EventDetail({
         <span className={`badge ${item.status.toLowerCase()}`}>{STATUS_LABELS[item.status]}</span>
       )}
 
+      {item.imageUrl && (
+        <img
+          className="event-detail-image"
+          src={item.imageUrl}
+          alt={item.title}
+          loading="lazy"
+          decoding="async"
+        />
+      )}
+
       <h2 className="detail-title">{item.title}</h2>
 
       <dl className="detail-facts">

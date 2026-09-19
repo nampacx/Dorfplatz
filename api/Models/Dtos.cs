@@ -5,14 +5,16 @@ namespace BulletinBoard.Api.Models;
 
 // ---- Events ----
 public record CreateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string? Category, DateTimeOffset? EndDate);
+    string? Category, DateTimeOffset? EndDate, string? ImageUrl, string? ImageBlobName);
 public record UpdateEventRequest(string Title, string Description, DateTimeOffset? EventDate, string? Location,
-    string? Category, DateTimeOffset? EndDate);
+    string? Category, DateTimeOffset? EndDate, string? ImageUrl, string? ImageBlobName);
 public record RejectEventRequest(string Reason);
 public record EventDto(Guid Id, string Title, string Description, DateTimeOffset? EventDate, DateTimeOffset? EndDate,
     string? Location, string Category, string Status, string? RejectionReason,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AuthorName,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? CreatedAt,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ImageUrl,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ImageBlobName,
     bool CanEdit);
 
 // ---- Services ----
