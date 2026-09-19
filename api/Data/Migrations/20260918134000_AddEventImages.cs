@@ -10,6 +10,13 @@ namespace BulletinBoard.Api.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            if (migrationBuilder.ActiveProvider == "Npgsql.EntityFrameworkCore.PostgreSQL")
+            {
+                migrationBuilder.Sql("""ALTER TABLE "Events" ADD COLUMN IF NOT EXISTS "ExternalImageUrl" character varying(1000);""");
+                migrationBuilder.Sql("""ALTER TABLE "Events" ADD COLUMN IF NOT EXISTS "ImageBlobName" character varying(300);""");
+                return;
+            }
+
             migrationBuilder.AddColumn<string>(
                 name: "ExternalImageUrl",
                 table: "Events",
@@ -28,6 +35,13 @@ namespace BulletinBoard.Api.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            if (migrationBuilder.ActiveProvider == "Npgsql.EntityFrameworkCore.PostgreSQL")
+            {
+                migrationBuilder.Sql("""ALTER TABLE "Events" DROP COLUMN IF EXISTS "ExternalImageUrl";""");
+                migrationBuilder.Sql("""ALTER TABLE "Events" DROP COLUMN IF EXISTS "ImageBlobName";""");
+                return;
+            }
+
             migrationBuilder.DropColumn(
                 name: "ExternalImageUrl",
                 table: "Events");
