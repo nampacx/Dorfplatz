@@ -49,13 +49,34 @@ public class CurrentUserService
 
         if (user is null)
         {
-            user = new AppUser
+            if (!string.IsNullOrWhiteSpace(principal.UserDetails))
             {
-                ProviderUserId = principal.UserId,
-                Email = principal.UserDetails,
-                DisplayName = principal.UserDetails
-            };
-            _db.Users.Add(user);
+                var emailMatches = await _db.Users
+                    .Include(u => u.Roles)
+                    .Where(u => u.Email != null && u.Email.ToLower() == principal.UserDetails.ToLower())
+                    .ToListAsync(ct);
+                user = emailMatches
+                    .OrderBy(u => u.ProviderUserId.StartsWith("seed:") ? 1 : 0)
+                    .ThenBy(u => u.CreatedAt)
+                    .ThenBy(u => u.Id)
+                    .FirstOrDefault();
+            }
+
+            if (user is null)
+            {
+                user = new AppUser
+                {
+                    ProviderUserId = principal.UserId,
+                    Email = principal.UserDetails,
+                    DisplayName = principal.UserDetails
+                };
+                _db.Users.Add(user);
+            }
+            else
+            {
+                user.ProviderUserId = principal.UserId;
+            }
+
             await _db.SaveChangesAsync(ct);
         }
 

@@ -91,15 +91,19 @@ public class GetRolesFunction
 
         if (user is null && !string.IsNullOrWhiteSpace(payload.UserDetails))
         {
-            // Adopt a pre-provisioned (seeded) account matched by email on first real login.
-            var seeded = await _db.Users
+            // Reuse an existing account when the identity provider assigns a new user id.
+            // Prefer a real account over a seeded one, then choose the oldest duplicate.
+            var emailMatches = await _db.Users
                 .Include(u => u.Roles)
-                .FirstOrDefaultAsync(u => u.Email == payload.UserDetails && u.ProviderUserId.StartsWith("seed:"));
-            if (seeded is not null)
-            {
-                seeded.ProviderUserId = payload.UserId;
-                user = seeded;
-            }
+                .Where(u => u.Email != null && u.Email.ToLower() == payload.UserDetails.ToLower())
+                .ToListAsync();
+            user = emailMatches
+                .OrderBy(u => u.ProviderUserId.StartsWith("seed:") ? 1 : 0)
+                .ThenBy(u => u.CreatedAt)
+                .ThenBy(u => u.Id)
+                .FirstOrDefault();
+            if (user is not null)
+                user.ProviderUserId = payload.UserId;
         }
 
         var providerName = ResolveDisplayName(payload);
