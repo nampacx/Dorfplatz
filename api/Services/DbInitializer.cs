@@ -26,6 +26,12 @@ public static class DbInitializer
         {
             await RepairEventImageColumnsAsync(db, logger);
             await db.Database.MigrateAsync();
+            await db.Users
+                .Where(u => u.DisplayName != null && u.DisplayName.Contains("@"))
+                .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.DisplayName,
+                    u => u.DisplayName!.Substring(0, u.DisplayName.IndexOf("@")).Trim() == ""
+                        ? "Mitglied"
+                        : u.DisplayName.Substring(0, u.DisplayName.IndexOf("@")).Trim()));
         }
         catch (Exception ex)
         {
@@ -48,7 +54,7 @@ public static class DbInitializer
             {
                 ProviderUserId = $"seed:{adminEmail}",
                 Email = adminEmail,
-                DisplayName = adminEmail,
+                DisplayName = CurrentUserService.SafeDisplayName(adminEmail),
                 // The bootstrap admin approves everyone else, so they cannot be
                 // waiting on an approval themselves.
                 Status = AccessStatus.Approved,
@@ -64,7 +70,7 @@ public static class DbInitializer
             // EF update a row that isn't there instead of inserting one.
             db.UserRoles.Add(new UserRole { Role = Roles.Admin, UserId = existing.Id });
             await db.SaveChangesAsync();
-            logger.LogInformation("Seeded admin role for {Email}", adminEmail);
+            logger.LogInformation("Seeded admin role for {UserId}", existing.Id);
         }
     }
 

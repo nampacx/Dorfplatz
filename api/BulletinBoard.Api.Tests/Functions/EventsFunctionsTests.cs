@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Xunit;
 
 namespace BulletinBoard.Api.Tests.Functions;
@@ -165,9 +166,58 @@ public sealed class EventsFunctionsTests : IDisposable
         Assert.Equal("Event images must be smaller than 512 KB.", badRequest.Value);
     }
 
+    [Theory]
+    [InlineData(null, AccessStatus.Approved, false)]
+    [InlineData(Roles.User, AccessStatus.Approved, false)]
+    [InlineData(Roles.Moderator, AccessStatus.Approved, true)]
+    [InlineData(Roles.Admin, AccessStatus.Approved, true)]
+    [InlineData(Roles.Moderator, AccessStatus.Pending, false)]
+    [InlineData(Roles.Admin, AccessStatus.Rejected, false)]
+    [InlineData(Roles.Moderator, AccessStatus.Suspended, false)]
+    [InlineData(Roles.Admin, AccessStatus.Suspended, false)]
+    public async Task List_OnlyApprovedModeratorsAndAdminsSeeSubmissionInfo(
+        string? role, AccessStatus status, bool canSee)
+    {
+        await using var db = CreateDb();
+        var author = await new CurrentUserService(db).GetOrCreateUserAsync(
+            CreateRequest("author", "author@example.com"));
+        db.Events.AddRange(
+            new EventPost { Title = "Current", Description = "Current event", AuthorId = author!.Id, Status = EventStatus.Published },
+            new EventPost
+            {
+                Title = "Archived", Description = "Archived event", AuthorId = author.Id, Status = EventStatus.Published,
+                EventDate = DateTimeOffset.UtcNow.AddYears(-1)
+            });
+        var request = new DefaultHttpContext().Request;
+        if (role is not null)
+        {
+            var viewer = new AppUser
+            {
+                ProviderUserId = "viewer", Email = "viewer@example.com", Status = status,
+                Roles = [new UserRole { Role = role }]
+            };
+            db.Users.Add(viewer);
+            request = CreateRequest("viewer", "viewer@example.com");
+        }
+        request.QueryString = new QueryString("?includePast=true");
+        await db.SaveChangesAsync();
+
+        var result = Assert.IsType<OkObjectResult>(await CreateSubject(db).List(request));
+        var events = Assert.IsType<EventDto[]>(result.Value);
+
+        Assert.Equal(canSee ? 2 : 1, events.Length);
+        Assert.All(events, item =>
+        {
+            Assert.Equal(canSee ? "author" : null, item.AuthorName);
+            Assert.Equal(canSee, item.CreatedAt.HasValue);
+            Assert.DoesNotContain("@", item.AuthorName ?? "");
+        });
+        Assert.DoesNotContain("author@example.com", JsonSerializer.Serialize(events));
+    }
+
     public void Dispose() => _connection.Dispose();
 
-    private AppDbContext CreateDb() => new(_options);
+    private AppDbContext CreateDb() => new SqliteTestDbContext(_options);
 
     private EventsFunctions CreateSubject(AppDbContext db, BlobService? blob = null) =>
         new(db, new CurrentUserService(db), new AuditService(db), blob ?? new FakeBlobService());
@@ -210,6 +260,15 @@ public sealed class EventsFunctionsTests : IDisposable
         db.Users.Add(member);
         await db.SaveChangesAsync();
         return member;
+    }
+
+    private sealed class SqliteTestDbContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)
+    {
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            // SQLite needs a numeric mapping to compare and sort the UTC timestamps in list tests.
+            configurationBuilder.Properties<DateTimeOffset>().HaveConversion<DateTimeOffsetToBinaryConverter>();
+        }
     }
 
     private sealed class FakeBlobService : BlobService

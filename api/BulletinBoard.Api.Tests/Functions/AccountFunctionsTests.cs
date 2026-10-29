@@ -4,6 +4,7 @@ using BulletinBoard.Api.Auth;
 using BulletinBoard.Api.Data;
 using BulletinBoard.Api.Data.Entities;
 using BulletinBoard.Api.Functions;
+using BulletinBoard.Api.Models;
 using BulletinBoard.Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -264,6 +265,57 @@ public sealed class AccountFunctionsTests : IDisposable
         // Assert
         Assert.IsType<UnauthorizedResult>(result);
         Assert.Empty(await db.AuditLogs.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData("member@example.com")]
+    [InlineData("Name <other@example.com>")]
+    [InlineData("@")]
+    public async Task UpdateProfile_EmailLikeName_IsRejected(string name)
+    {
+        await using var db = CreateDb();
+        var member = CreateUser("member");
+        member.DisplayName = "Pseudonym";
+        db.Users.Add(member);
+        await db.SaveChangesAsync();
+
+        var result = await CreateSubject(db).UpdateProfile(CreateRequest(name));
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("Pseudonym", (await db.Users.SingleAsync()).DisplayName);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_Pseudonym_IsSavedAndReturnsOwnEmail()
+    {
+        await using var db = CreateDb();
+        var member = CreateUser("member");
+        db.Users.Add(member);
+        await db.SaveChangesAsync();
+
+        var result = await CreateSubject(db).UpdateProfile(CreateRequest("  Dorfkind  "));
+
+        var profile = Assert.IsType<MeDto>(Assert.IsType<OkObjectResult>(result).Value);
+        Assert.Equal("Dorfkind", profile.DisplayName);
+        Assert.Equal("member@example.com", profile.Email);
+        Assert.Equal(member.Id, profile.Id);
+        Assert.Equal("Dorfkind", (await db.Users.SingleAsync()).DisplayName);
+    }
+
+    [Fact]
+    public async Task Me_Anonymous_CannotReadEmail()
+    {
+        await using var db = CreateDb();
+        Assert.IsType<UnauthorizedResult>(await CreateSubject(db).Me(new DefaultHttpContext().Request));
+    }
+
+    private static HttpRequest CreateRequest(string name)
+    {
+        var request = new DefaultHttpContext().Request;
+        request.Headers["x-ms-client-principal"] = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(new ClientPrincipal { UserId = "provider-member", UserDetails = "member@example.com" })));
+        request.Body = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { displayName = name })));
+        return request;
     }
 
     public void Dispose() => _connection.Dispose();
