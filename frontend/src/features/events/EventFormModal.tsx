@@ -56,7 +56,6 @@ export default function EventFormModal({
     endTime: toTimeInputValue(existing?.endDate ?? null, 'end'),
     location: existing?.location ?? '',
     category: (existing?.category ?? 'Sonstiges') as EventCategory,
-    imageUrl: existing?.imageBlobName ? '' : existing?.imageUrl ?? '',
   })
   const [imageBlobName, setImageBlobName] = useState<string | null>(existing?.imageBlobName ?? null)
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -84,7 +83,7 @@ export default function EventFormModal({
         endDate: combineDateAndTime(form.endDate, form.endTime, { blankTimeMeansEndOfDay: true }),
         location: form.location || null,
         category: form.category,
-        imageUrl: imageFile ? null : form.imageUrl.trim() || null,
+        imageUrl: null,
         imageBlobName: uploadedBlobName,
       }
       if (existing) await api.patch(`/events/${existing.id}`, payload)
@@ -133,22 +132,6 @@ export default function EventFormModal({
           <textarea required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
         <div className="field">
-          <label>Bild-URL</label>
-          <input
-            type="url"
-            placeholder="https://…"
-            value={form.imageUrl}
-            onChange={(e) => {
-              const nextUrl = e.target.value
-              setForm({ ...form, imageUrl: nextUrl })
-              setImageBlobName(null)
-              setImageFile(null)
-              setPreviewUrl(nextUrl.trim() || null)
-            }}
-          />
-          <small>Alternativ zum Upload. Erlaubt sind JPG, PNG, SVG und GIF bis 512 KB.</small>
-        </div>
-        <div className="field">
           <label>Bild hochladen</label>
           <input
             type="file"
@@ -163,7 +146,6 @@ export default function EventFormModal({
                 return
               }
               setError(null)
-              setForm((current) => ({ ...current, imageUrl: '' }))
               setImageBlobName(null)
               setImageFile(file)
             }}
@@ -180,7 +162,6 @@ export default function EventFormModal({
               type="button"
               className="btn secondary"
               onClick={() => {
-                setForm((current) => ({ ...current, imageUrl: '' }))
                 setImageBlobName(null)
                 setImageFile(null)
                 setPreviewUrl(null)
