@@ -20,6 +20,12 @@ public class CurrentUserService
 
     public CurrentUserService(AppDbContext db) => _db = db;
 
+    public static string SafeDisplayName(string? name)
+    {
+        var localName = name?.Split('@', 2)[0].Trim();
+        return string.IsNullOrWhiteSpace(localName) ? "Mitglied" : localName;
+    }
+
     public ClientPrincipal? ReadPrincipal(HttpRequest req)
     {
         if (!req.Headers.TryGetValue("x-ms-client-principal", out var header) || header.Count == 0)
@@ -68,7 +74,7 @@ public class CurrentUserService
                 {
                     ProviderUserId = principal.UserId,
                     Email = principal.UserDetails,
-                    DisplayName = principal.UserDetails
+                    DisplayName = SafeDisplayName(principal.UserDetails)
                 };
                 _db.Users.Add(user);
             }

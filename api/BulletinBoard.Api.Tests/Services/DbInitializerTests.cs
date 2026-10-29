@@ -1,4 +1,5 @@
 using BulletinBoard.Api.Data;
+using BulletinBoard.Api.Data.Entities;
 using BulletinBoard.Api.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,45 @@ public sealed class DbInitializerTests
         await using var provider = services.BuildServiceProvider();
 
         await Assert.ThrowsAnyAsync<Exception>(() => DbInitializer.InitializeAsync(provider));
+    }
+
+    [Fact]
+    public async Task InitializeAsync_CleansLegacyNamesAndSeedsSafeAdminName()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Seed:AdminEmail"] = "admin@example.com" })
+            .Build());
+        services.AddDbContext<AppDbContext>(options => options.UseSqlite(connection));
+        await using var provider = services.BuildServiceProvider();
+
+        using (var scope = provider.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.EnsureCreatedAsync();
+            await SeedMigrationHistoryAsync(db);
+            foreach (var name in new[] { "member@example.com", " OTHER@example.com ", "@example.com", "Pseudonym", "Deleted user" })
+                db.Users.Add(new AppUser { ProviderUserId = name, Email = "private@example.com", DisplayName = name });
+            await db.SaveChangesAsync();
+        }
+
+        await DbInitializer.InitializeAsync(provider);
+        await DbInitializer.InitializeAsync(provider);
+
+        using var verifyScope = provider.CreateScope();
+        var users = await verifyScope.ServiceProvider.GetRequiredService<AppDbContext>().Users.ToListAsync();
+        Assert.Equal(6, users.Count);
+        Assert.All(users, user => Assert.DoesNotContain("@", user.DisplayName!));
+        Assert.Equal("member", users.Single(u => u.ProviderUserId == "member@example.com").DisplayName);
+        Assert.Equal("OTHER", users.Single(u => u.ProviderUserId == " OTHER@example.com ").DisplayName);
+        Assert.Equal("Mitglied", users.Single(u => u.ProviderUserId == "@example.com").DisplayName);
+        Assert.Equal("Pseudonym", users.Single(u => u.ProviderUserId == "Pseudonym").DisplayName);
+        Assert.Equal("Deleted user", users.Single(u => u.ProviderUserId == "Deleted user").DisplayName);
+        Assert.Equal("admin", users.Single(u => u.Email == "admin@example.com").DisplayName);
+        Assert.Equal("private@example.com", users.Single(u => u.ProviderUserId == "member@example.com").Email);
     }
 
     [Fact]

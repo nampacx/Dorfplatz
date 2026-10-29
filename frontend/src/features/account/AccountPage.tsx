@@ -158,7 +158,7 @@ function ProfilePanel() {
             setSaved(false)
           }}
         />
-        <small>So erscheinst du neben deinen Beiträgen. {MAX_NAME - trimmed.length} Zeichen übrig.</small>
+        <small>So erscheinst du neben deinen Beiträgen. Du kannst ein Pseudonym verwenden. Bitte keine E-Mail-Adresse angeben. {MAX_NAME - trimmed.length} Zeichen übrig.</small>
       </div>
 
       <div className="field">
