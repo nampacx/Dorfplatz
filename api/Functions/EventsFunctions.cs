@@ -50,6 +50,7 @@ public class EventsFunctions
 
     private static bool MaySeeSubmissionInfo(AppUser? viewer) =>
         viewer is not null
+        && CurrentUserService.IsApproved(viewer)
         && (CurrentUserService.IsInRole(viewer, Roles.Moderator) || CurrentUserService.IsAdmin(viewer));
 
     private static (string? ExternalImageUrl, string? ImageBlobName, string? Error) ParseImageReference(
@@ -557,7 +558,7 @@ public class EventsFunctions
             .Where(e => e.DeletedAt == null && e.Status == EventStatus.Published);
 
         var includePast = bool.TryParse(req.Query["includePast"].ToString(), out var flag) && flag
-            && viewer is not null && CurrentUserService.IsModerator(viewer);
+            && MaySeeSubmissionInfo(viewer);
         if (!includePast)
         {
             // Date-only entries are serialized from the browser's local midnight,

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using BulletinBoard.Api.Data;
 using BulletinBoard.Api.Data.Entities;
+using BulletinBoard.Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -74,7 +75,7 @@ public class GetRolesFunction
         var given = Claim("given_name") ?? Claim(SchemaGivenName);
         var family = Claim("family_name") ?? Claim(SchemaSurname);
         var joined = string.Join(' ', new[] { given, family }.Where(s => !string.IsNullOrWhiteSpace(s)));
-        return string.IsNullOrWhiteSpace(joined) ? null : joined;
+        return string.IsNullOrWhiteSpace(joined) || joined.Contains('@') ? null : joined;
     }
 
     [Function("GetRoles")]
@@ -114,8 +115,7 @@ public class GetRolesFunction
             {
                 ProviderUserId = payload.UserId,
                 Email = payload.UserDetails,
-                // Falls back to the address only when the provider sent no name.
-                DisplayName = providerName ?? payload.UserDetails
+                DisplayName = providerName ?? CurrentUserService.SafeDisplayName(payload.UserDetails)
             };
             _db.Users.Add(user);
         }
@@ -124,14 +124,11 @@ public class GetRolesFunction
             // Erased accounts get no elevated roles.
             return new OkObjectResult(new { roles = Array.Empty<string>() });
         }
-        else if (providerName is not null &&
-                 (string.IsNullOrWhiteSpace(user.DisplayName) || user.DisplayName == user.Email))
+        else if (string.IsNullOrWhiteSpace(user.DisplayName) || user.DisplayName.Contains('@'))
         {
-            // Accounts created before names were captured show an email address
-            // next to their posts. Upgrade them on the next sign-in — but only
-            // while the stored name is still just the address, so a name the
-            // member chose on the account page is never overwritten.
-            user.DisplayName = providerName;
+            // Repair legacy names without overwriting a member's chosen pseudonym.
+            user.DisplayName = providerName ?? CurrentUserService.SafeDisplayName(
+                string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName);
         }
 
         await _db.SaveChangesAsync();

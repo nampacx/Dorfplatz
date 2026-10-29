@@ -58,6 +58,8 @@ public class AccountFunctions
             return new BadRequestObjectResult("A display name is required.");
         if (name.Length > MaxDisplayNameLength)
             return new BadRequestObjectResult($"The display name may be at most {MaxDisplayNameLength} characters.");
+        if (name.Contains('@'))
+            return new BadRequestObjectResult("The display name must not contain an email address. You may use a pseudonym.");
 
         me.DisplayName = name;
         await _db.SaveChangesAsync();

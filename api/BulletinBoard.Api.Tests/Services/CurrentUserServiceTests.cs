@@ -53,6 +53,23 @@ public sealed class CurrentUserServiceTests : IDisposable
         Assert.Single(await db.Users.ToListAsync());
     }
 
+    [Theory]
+    [InlineData("member@example.com", "member")]
+    [InlineData(" member@example.com ", "member")]
+    [InlineData("", "Mitglied")]
+    [InlineData("@example.com", "Mitglied")]
+    public async Task GetOrCreateUserAsync_NewAccount_DoesNotStoreEmailAsDisplayName(string email, string expected)
+    {
+        await using var db = CreateDb();
+
+        var user = await new CurrentUserService(db).GetOrCreateUserAsync(CreateRequest("member", email));
+
+        Assert.NotNull(user);
+        Assert.Equal(expected, user.DisplayName);
+        Assert.Equal(email, user.Email);
+        Assert.DoesNotContain("@", user.DisplayName!);
+    }
+
     public void Dispose() => _connection.Dispose();
 
     private AppDbContext CreateDb() => new(_options);
