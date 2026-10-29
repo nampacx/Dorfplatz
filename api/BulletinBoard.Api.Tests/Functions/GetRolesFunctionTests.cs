@@ -63,6 +63,69 @@ public sealed class GetRolesFunctionTests : IDisposable
         Assert.Contains(user.Roles, role => role.Role == Roles.Admin);
     }
 
+    [Theory]
+    [InlineData("member@example.com", "member")]
+    [InlineData(null, "Mitglied")]
+    [InlineData("", "Mitglied")]
+    [InlineData("@example.com", "Mitglied")]
+    public async Task Run_WithoutProviderName_StoresOnlyEmailLocalPart(string? email, string expected)
+    {
+        await using var db = CreateDb();
+
+        await CreateSubject(db).Run(CreateRequest(JsonSerializer.Serialize(new
+        {
+            userId = "new-member",
+            userDetails = email
+        })));
+
+        var user = await db.Users.SingleAsync();
+        Assert.Equal(expected, user.DisplayName);
+        Assert.Equal(email, user.Email);
+        Assert.DoesNotContain("@", user.DisplayName!);
+    }
+
+    [Theory]
+    [InlineData("name", "Member Name", "Member Name")]
+    [InlineData("name", "member@example.com", "member")]
+    [InlineData("given_name", "member@example.com", "member")]
+    [InlineData("given_name", "Member", "Member")]
+    public async Task Run_WithProviderClaim_RejectsEmailNames(string claimType, string claimValue, string expected)
+    {
+        await using var db = CreateDb();
+
+        await CreateSubject(db).Run(CreateRequest(JsonSerializer.Serialize(new
+        {
+            userId = "new-member",
+            userDetails = "member@example.com",
+            claims = new[] { new { typ = claimType, val = claimValue } }
+        })));
+
+        Assert.Equal(expected, (await db.Users.SingleAsync()).DisplayName);
+    }
+
+    [Theory]
+    [InlineData("member@example.com", "member")]
+    [InlineData("MEMBER@example.com", "MEMBER")]
+    [InlineData(null, "member")]
+    [InlineData(" ", "member")]
+    [InlineData("Pseudonym", "Pseudonym")]
+    public async Task Run_ExistingAccount_RepairsLegacyNameAndPreservesPseudonym(string? name, string expected)
+    {
+        await using var db = CreateDb();
+        db.Users.Add(new AppUser
+        {
+            ProviderUserId = "member",
+            Email = "member@example.com",
+            DisplayName = name
+        });
+        await db.SaveChangesAsync();
+
+        await CreateSubject(db).Run(CreateRequest(
+            """{"userId":"member","userDetails":"member@example.com"}"""));
+
+        Assert.Equal(expected, (await db.Users.SingleAsync()).DisplayName);
+    }
+
     public void Dispose() => _connection.Dispose();
 
     private AppDbContext CreateDb() => new(_options);

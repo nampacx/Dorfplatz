@@ -8,6 +8,7 @@ using BulletinBoard.Api.Models;
 using BulletinBoard.Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -29,6 +30,44 @@ public sealed class AdminFunctionsTests : IDisposable
 
         using var db = CreateDb();
         db.Database.EnsureCreated();
+    }
+
+    [Fact]
+    public async Task ListUsers_AnonymousCannotReadEmails()
+    {
+        await using var db = CreateDb();
+        await SeedAdminAsync(db);
+
+        Assert.IsType<UnauthorizedResult>(await CreateSubject(db).ListUsers(new DefaultHttpContext().Request));
+    }
+
+    [Theory]
+    [InlineData(Roles.User, AccessStatus.Approved)]
+    [InlineData(Roles.Moderator, AccessStatus.Approved)]
+    [InlineData(Roles.Admin, AccessStatus.Pending)]
+    [InlineData(Roles.Admin, AccessStatus.Suspended)]
+    [InlineData(Roles.Admin, AccessStatus.Rejected)]
+    public async Task ListUsers_WithoutApprovedAdminRole_CannotReadEmails(string role, AccessStatus status)
+    {
+        await using var db = CreateDb();
+        db.Users.Add(new AppUser
+        {
+            ProviderUserId = "viewer", Email = "viewer@example.com", Status = status,
+            Roles = [new UserRole { Role = role }]
+        });
+        await db.SaveChangesAsync();
+        var request = CreateRequest("viewer", "viewer@example.com");
+        request.Headers["x-ms-client-principal"] = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(new ClientPrincipal
+            {
+                UserId = "viewer", UserDetails = "viewer@example.com",
+                UserRoles = ["authenticated", Roles.Admin]
+            })));
+
+        var result = await CreateSubject(db).ListUsers(request);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsAssignableFrom<IStatusCodeActionResult>(result).StatusCode);
+        Assert.DoesNotContain("viewer@example.com", JsonSerializer.Serialize(result));
     }
 
     [Fact]
