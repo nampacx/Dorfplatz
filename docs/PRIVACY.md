@@ -29,6 +29,8 @@
 
 - Kontodaten bis zur Löschung des Kontos
 - Inhalte bis zur Löschung durch die erstellende Person oder Kontolöschung
+- PostgreSQL-Datenbank-Backups werden bis zu 7 Tage aufbewahrt. Nach einer Kontolöschung
+  können darin enthaltene Daten bis zum Ablauf dieser Aufbewahrungsfrist weiterhin vorhanden sein.
 
 ## Rechte der betroffenen Person
 
