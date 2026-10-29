@@ -70,7 +70,7 @@ public static class DbInitializer
             // EF update a row that isn't there instead of inserting one.
             db.UserRoles.Add(new UserRole { Role = Roles.Admin, UserId = existing.Id });
             await db.SaveChangesAsync();
-            logger.LogInformation("Seeded admin role for {Email}", adminEmail);
+            logger.LogInformation("Seeded admin role for {UserId}", existing.Id);
         }
     }
 
