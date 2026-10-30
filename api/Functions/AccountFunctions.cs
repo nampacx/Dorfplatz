@@ -114,8 +114,8 @@ public class AccountFunctions
 
     /// <summary>
     /// Right to erasure: anonymise the profile, remove images, tombstone messages and
-    /// withdraw listings. Content authored by the user is soft-deleted; the account is
-    /// marked deleted so GetRoles stops returning any roles.
+    /// withdraw listings after clearing their content. The account is marked deleted
+    /// so GetRoles stops returning any roles.
     /// </summary>
     [Function("DeleteMyAccount")]
     public async Task<IActionResult> Delete(
@@ -127,27 +127,67 @@ public class AccountFunctions
         var now = DateTimeOffset.UtcNow;
 
         var events = await _db.Events.Where(e => e.AuthorId == me.Id).ToListAsync();
-        foreach (var e in events) e.DeletedAt = now;
+        foreach (var e in events)
+        {
+            if (!string.IsNullOrEmpty(e.ImageBlobName)) await _blob.DeleteAsync(e.ImageBlobName);
+            e.Title = string.Empty;
+            e.Description = string.Empty;
+            e.EventDate = null;
+            e.EndDate = null;
+            e.Location = null;
+            e.ExternalImageUrl = null;
+            e.ImageBlobName = null;
+            e.RejectionReason = null;
+            e.DeletedAt = now;
+        }
 
         var services = await _db.Services.Where(s => s.AuthorId == me.Id).ToListAsync();
-        foreach (var s in services) s.DeletedAt = now;
+        foreach (var s in services)
+        {
+            s.Title = string.Empty;
+            s.Description = string.Empty;
+            s.Category = null;
+            s.DeletedAt = now;
+        }
 
         var goods = await _db.Goods.Include(g => g.Images).Where(g => g.AuthorId == me.Id).ToListAsync();
         foreach (var g in goods)
         {
             foreach (var img in g.Images) await _blob.DeleteAsync(img.BlobName);
+            _db.GoodsImages.RemoveRange(g.Images);
+            g.Title = string.Empty;
+            g.Description = string.Empty;
+            g.Category = null;
+            g.Location = null;
+            g.Price = 0;
             g.DeletedAt = now;
         }
 
         var messages = await _db.Messages.Where(m => m.SenderId == me.Id).ToListAsync();
         foreach (var m in messages) { m.Body = string.Empty; m.IsDeleted = true; }
 
+        var contentIds = events.Select(e => e.Id)
+            .Concat(services.Select(s => s.Id))
+            .Concat(goods.Select(g => g.Id))
+            .ToList();
+        var auditLogs = await _db.AuditLogs
+            .Where(log => log.ActorUserId == me.Id || log.TargetId == me.Id ||
+                (log.TargetId != null && contentIds.Contains(log.TargetId.Value)))
+            .ToListAsync();
+        foreach (var log in auditLogs) log.Detail = null;
+
         // Remove elevated roles and anonymise the profile.
         var roles = await _db.UserRoles.Where(r => r.UserId == me.Id).ToListAsync();
         _db.UserRoles.RemoveRange(roles);
 
+        me.ProviderUserId = $"deleted:{Guid.NewGuid():N}";
         me.Email = null;
         me.DisplayName = "Deleted user";
+        me.ConsentedAt = null;
+        me.StatusReason = null;
+        me.Status = AccessStatus.Pending;
+        me.DecidedAt = null;
+        me.DecidedByUserId = null;
         me.DeletedAt = now;
 
         _audit.Record("gdpr.erase", me.Id, "user", me.Id);
