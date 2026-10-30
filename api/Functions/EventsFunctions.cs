@@ -53,7 +53,7 @@ public class EventsFunctions
         && CurrentUserService.IsApproved(viewer)
         && (CurrentUserService.IsInRole(viewer, Roles.Moderator) || CurrentUserService.IsAdmin(viewer));
 
-    private static (string? ExternalImageUrl, string? ImageBlobName, string? Error) ParseImageReference(
+    private static (string? ImageBlobName, string? Error) ParseImageReference(
         string? imageUrl,
         string? imageBlobName)
     {
@@ -61,14 +61,12 @@ public class EventsFunctions
         var normalizedBlobName = string.IsNullOrWhiteSpace(imageBlobName) ? null : imageBlobName.Trim();
 
         if (normalizedUrl is not null && normalizedBlobName is not null)
-            return (null, null, "Provide either an image URL or an uploaded image, not both.");
+            return (null, "Provide either an image URL or an uploaded image, not both.");
 
-        if (normalizedUrl is not null
-            && (!Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri)
-                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
-            return (null, null, "The image URL must start with http:// or https://.");
+        if (normalizedUrl is not null)
+            return (null, "External image URLs are not supported. Upload an image instead.");
 
-        return (normalizedUrl, normalizedBlobName, null);
+        return (normalizedBlobName, null);
     }
 
     private static bool BlobBelongsToUser(Guid userId, string blobName) =>
@@ -524,7 +522,7 @@ public class EventsFunctions
     {
         if (!string.IsNullOrWhiteSpace(e.ImageBlobName))
             return await _blob.CreateReadUrlAsync(e.ImageBlobName, ReadTtl);
-        return string.IsNullOrWhiteSpace(e.ExternalImageUrl) ? null : e.ExternalImageUrl;
+        return null;
     }
 
     private async Task DeleteStoredImageAsync(string? imageBlobName)
@@ -640,7 +638,7 @@ public class EventsFunctions
             : EventCategory.Sonstiges;
         var scheduleError = ValidateSchedule(body.EventDate, body.EndDate);
         if (scheduleError is not null) return new BadRequestObjectResult(scheduleError);
-        var (externalImageUrl, imageBlobName, imageError) = ParseImageReference(body.ImageUrl, body.ImageBlobName);
+        var (imageBlobName, imageError) = ParseImageReference(body.ImageUrl, body.ImageBlobName);
         if (imageError is not null) return new BadRequestObjectResult(imageError);
         if (imageBlobName is not null && !BlobBelongsToUser(me.Id, imageBlobName))
             return new BadRequestObjectResult("Uploaded event images must belong to the current user.");
@@ -652,7 +650,6 @@ public class EventsFunctions
             EventDate = body.EventDate,
             EndDate = body.EndDate,
             Location = body.Location?.Trim(),
-            ExternalImageUrl = externalImageUrl,
             ImageBlobName = imageBlobName,
             Category = category,
             AuthorId = me.Id,
@@ -694,7 +691,7 @@ public class EventsFunctions
             : EventCategory.Sonstiges;
         var scheduleError = ValidateSchedule(body.EventDate, body.EndDate);
         if (scheduleError is not null) return new BadRequestObjectResult(scheduleError);
-        var (externalImageUrl, imageBlobName, imageError) = ParseImageReference(body.ImageUrl, body.ImageBlobName);
+        var (imageBlobName, imageError) = ParseImageReference(body.ImageUrl, body.ImageBlobName);
         if (imageError is not null) return new BadRequestObjectResult(imageError);
         if (imageBlobName is not null && !BlobBelongsToUser(me.Id, imageBlobName))
             return new BadRequestObjectResult("Uploaded event images must belong to the current user.");
@@ -705,7 +702,7 @@ public class EventsFunctions
         e.EventDate = body.EventDate;
         e.EndDate = body.EndDate;
         e.Location = body.Location?.Trim();
-        e.ExternalImageUrl = externalImageUrl;
+        e.ExternalImageUrl = null;
         e.ImageBlobName = imageBlobName;
         e.Category = category;
         e.UpdatedAt = DateTimeOffset.UtcNow;

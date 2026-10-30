@@ -33,7 +33,7 @@ public sealed class EventsFunctionsTests : IDisposable
     }
 
     [Fact]
-    public async Task Create_StoresExternalImageUrl()
+    public async Task Create_RejectsExternalImageUrl()
     {
         await using var db = CreateDb();
         var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
@@ -49,14 +49,9 @@ public sealed class EventsFunctionsTests : IDisposable
                 imageUrl = " https://example.com/flyer.png "
             }));
 
-        var created = Assert.IsType<CreatedResult>(result);
-        var payload = Assert.IsType<EventDto>(created.Value);
-        Assert.Equal("https://example.com/flyer.png", payload.ImageUrl);
-        Assert.Null(payload.ImageBlobName);
-
-        var stored = await db.Events.SingleAsync();
-        Assert.Equal("https://example.com/flyer.png", stored.ExternalImageUrl);
-        Assert.Null(stored.ImageBlobName);
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("External image URLs are not supported. Upload an image instead.", badRequest.Value);
+        Assert.Empty(await db.Events.ToListAsync());
     }
 
     [Fact]
@@ -129,20 +124,79 @@ public sealed class EventsFunctionsTests : IDisposable
                 title = "Sommerfest",
                 description = "Neu",
                 category = "Vereine",
-                imageUrl = "https://example.com/new.png"
+                imageBlobName = $"{member.Id}/new.png"
             }),
             existing.Id);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var payload = Assert.IsType<EventDto>(ok.Value);
-        Assert.Equal("https://example.com/new.png", payload.ImageUrl);
-        Assert.Null(payload.ImageBlobName);
+        Assert.Equal($"https://cdn.example/{member.Id}/new.png", payload.ImageUrl);
+        Assert.Equal($"{member.Id}/new.png", payload.ImageBlobName);
         Assert.Contains($"{member.Id}/old.png", blob.DeletedBlobNames);
 
         var stored = await db.Events.SingleAsync();
-        Assert.Equal("https://example.com/new.png", stored.ExternalImageUrl);
-        Assert.Null(stored.ImageBlobName);
+        Assert.Null(stored.ExternalImageUrl);
+        Assert.Equal($"{member.Id}/new.png", stored.ImageBlobName);
         Assert.Equal(EventStatus.Pending, stored.Status);
+    }
+
+    [Fact]
+    public async Task Update_RejectsExternalImageUrl()
+    {
+        await using var db = CreateDb();
+        var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
+        var existing = new EventPost
+        {
+            Title = "Sommerfest",
+            Description = "Alt",
+            AuthorId = member.Id,
+            Status = EventStatus.Pending
+        };
+        db.Events.Add(existing);
+        await db.SaveChangesAsync();
+
+        var result = await CreateSubject(db).Update(CreateRequest(
+            member.ProviderUserId,
+            member.Email!,
+            new
+            {
+                title = "Sommerfest",
+                description = "Neu",
+                imageUrl = "https://example.com/new.png"
+            }),
+            existing.Id);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("External image URLs are not supported. Upload an image instead.", badRequest.Value);
+        Assert.Null(existing.ExternalImageUrl);
+    }
+
+    [Fact]
+    public async Task Update_DoesNotExposeLegacyExternalImageUrl()
+    {
+        await using var db = CreateDb();
+        var member = await SeedApprovedMemberAsync(db, "member-1", "member1@example.com");
+        var existing = new EventPost
+        {
+            Title = "Sommerfest",
+            Description = "Alt",
+            AuthorId = member.Id,
+            Status = EventStatus.Pending,
+            ExternalImageUrl = "https://example.com/tracking-image.png"
+        };
+        db.Events.Add(existing);
+        await db.SaveChangesAsync();
+
+        var result = await CreateSubject(db).Update(CreateRequest(
+            member.ProviderUserId,
+            member.Email!,
+            new { title = "Sommerfest", description = "Neu" }),
+            existing.Id);
+
+        var response = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<EventDto>(response.Value);
+        Assert.Null(payload.ImageUrl);
+        Assert.Null(existing.ExternalImageUrl);
     }
 
     [Fact]

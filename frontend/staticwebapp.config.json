@@ -37,7 +37,7 @@
     "401": { "statusCode": 302, "redirect": "/login" }
   },
   "globalHeaders": {
-    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https:; connect-src 'self' https: wss:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'",
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https://*.blob.core.windows.net; connect-src 'self' https: wss:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin"

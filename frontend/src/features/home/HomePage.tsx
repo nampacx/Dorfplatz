@@ -1,9 +1,3 @@
-const HOME_IMAGES = [
-  'https://www.blaubeuren.de/ceasy/resource/10351?&doCrop=1&width=800&height=450',
-  'https://www.blaubeuren.de/ceasy/resource/10356?&doCrop=1&width=800&height=450',
-  'https://www.blaubeuren.de/ceasy/resource/10357?&doCrop=1&width=800&height=450',
-]
-
 export default function HomePage() {
   return (
     <>
@@ -44,17 +38,6 @@ export default function HomePage() {
         </p>
       </section>
 
-      <section className="grid" aria-label="Eindrücke aus unserer Gemeinde">
-        {HOME_IMAGES.map((url, index) => (
-          <article key={url} className="card">
-            <img
-              src={url}
-              alt={`Eindruck aus der Gemeinde ${index + 1}`}
-              style={{ width: '100%', display: 'block', borderRadius: '12px', objectFit: 'cover', aspectRatio: '16 / 9' }}
-            />
-          </article>
-        ))}
-      </section>
     </>
   )
 }
