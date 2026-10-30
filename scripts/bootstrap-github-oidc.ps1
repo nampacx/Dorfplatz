@@ -7,6 +7,10 @@
 .EXAMPLE
   ./scripts/bootstrap-github-oidc.ps1 -SubscriptionId <sub> -Repo owner/BulletinBoard -SeedAdminEmail you@example.com
 
+.EXAMPLE
+  ./scripts/bootstrap-github-oidc.ps1 -SubscriptionId <sub> -FederatedCredentialsOnly
+  Repairs federated credentials without changing secrets, RBAC, or resources.
+
 .NOTES
   Requires: Azure CLI (az) logged in with Owner/UAA on the subscription, and GitHub CLI (gh) logged in.
 #>
@@ -19,7 +23,8 @@ param(
   [string] $AppName = 'bb-github-deploy',
   [string[]] $Environments = @('dev', 'prod'),
   [string] $PostgresPassword,
-  [string] $SeedAdminEmail = ''
+  [string] $SeedAdminEmail = '',
+  [switch] $FederatedCredentialsOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,41 +42,72 @@ if (-not $Repo) {
   Info "Detected repo: $Repo"
 }
 
-if (-not $PostgresPassword) {
+$oidcJson = gh api -H 'X-GitHub-Api-Version: 2026-03-10' "repos/$Repo/actions/oidc/customization/sub"
+if ($LASTEXITCODE) { throw 'Cannot read repository OIDC settings.' }
+$oidc = $oidcJson | ConvertFrom-Json
+if (-not $oidc.use_default -and ($oidc.include_claim_keys -join ',') -cne 'repo,context') {
+  throw 'Unsupported custom OIDC subject template.'
+}
+$subjectPrefix = [string]$oidc.sub_claim_prefix
+if (-not $subjectPrefix.StartsWith('repo:')) { throw 'Missing or unexpected OIDC subject prefix.' }
+$subjectPrefix = $subjectPrefix.TrimEnd(':')
+
+if (-not $FederatedCredentialsOnly -and -not $PostgresPassword) {
   $PostgresPassword = -join ((48..57) + (65..90) + (97..122) + (33,35,37,64) | Get-Random -Count 24 | ForEach-Object { [char]$_ })
   Info 'Generated a random PostgreSQL admin password.'
 }
 
 az account set --subscription $SubscriptionId
+if ($LASTEXITCODE) { throw 'Cannot select Azure subscription.' }
 $tenantId = az account show --query tenantId -o tsv
+if ($LASTEXITCODE) { throw 'Cannot read Azure tenant.' }
 
 # --- Resource group -------------------------------------------------------
-Info "Ensuring resource group '$ResourceGroup' in $Location..."
-az group create -n $ResourceGroup -l $Location 1>$null
+if (-not $FederatedCredentialsOnly) {
+  Info "Ensuring resource group '$ResourceGroup' in $Location..."
+  az group create -n $ResourceGroup -l $Location 1>$null
+}
 
 # --- Deploy app registration + service principal --------------------------
 Info "Creating app registration '$AppName'..."
 $appId = az ad app list --display-name $AppName --query '[0].appId' -o tsv
+if ($LASTEXITCODE) { throw 'Cannot find deployment app.' }
+if ($FederatedCredentialsOnly -and -not $appId) { throw "Existing deployment app '$AppName' not found." }
 if (-not $appId) { $appId = az ad app create --display-name $AppName --query appId -o tsv }
 
-$spObjectId = az ad sp list --filter "appId eq '$appId'" --query '[0].id' -o tsv
-if (-not $spObjectId) { $spObjectId = az ad sp create --id $appId --query id -o tsv }
 Info "App (client) id: $appId"
 
 # --- Federated credentials (main, PRs, environments) ----------------------
 function Add-FederatedCredential($name, $subject) {
-  $exists = az ad app federated-credential list --id $appId --query "[?name=='$name'] | [0].name" -o tsv
-  if ($exists) { return }
+  $credentialId = az ad app federated-credential list --id $appId --query "[?name=='$name'] | [0].id" -o tsv
+  if ($LASTEXITCODE) { throw 'Cannot list federated credentials.' }
   $cred = @{ name = $name; issuer = 'https://token.actions.githubusercontent.com'; subject = $subject; audiences = @('api://AzureADTokenExchange') }
+  if ($credentialId) { $cred.Remove('name') }
   $tmp = New-TemporaryFile
-  $cred | ConvertTo-Json | Set-Content $tmp
-  az ad app federated-credential create --id $appId --parameters "@$tmp" 1>$null
-  Remove-Item $tmp
-  Info "Federated credential added: $subject"
+  try {
+    $cred | ConvertTo-Json | Set-Content $tmp
+    if ($credentialId) {
+      az ad app federated-credential update --id $appId --federated-credential-id $credentialId --parameters "@$tmp" 1>$null
+    } else {
+      az ad app federated-credential create --id $appId --parameters "@$tmp" 1>$null
+    }
+    if ($LASTEXITCODE) { throw "Cannot save federated credential '$name'." }
+  } finally {
+    Remove-Item $tmp
+  }
+  Info "Federated credential: $subject"
 }
-Add-FederatedCredential 'gh-main'  "repo:${Repo}:ref:refs/heads/main"
-Add-FederatedCredential 'gh-pr'    "repo:${Repo}:pull_request"
-foreach ($e in $Environments) { Add-FederatedCredential "gh-env-$e" "repo:${Repo}:environment:$e" }
+Add-FederatedCredential 'gh-main'  "${subjectPrefix}:ref:refs/heads/main"
+Add-FederatedCredential 'gh-pr'    "${subjectPrefix}:pull_request"
+foreach ($e in $Environments) { Add-FederatedCredential "gh-env-$e" "${subjectPrefix}:environment:$e" }
+
+if ($FederatedCredentialsOnly) {
+  Info 'Federated credentials repaired. GitHub secrets and Azure resources were not changed.'
+  return
+}
+
+$spObjectId = az ad sp list --filter "appId eq '$appId'" --query '[0].id' -o tsv
+if (-not $spObjectId) { $spObjectId = az ad sp create --id $appId --query id -o tsv }
 
 # --- RBAC (Contributor + User Access Administrator for role assignments) ---
 $scope = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup"

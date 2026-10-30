@@ -42,6 +42,43 @@ Function App and SWA by their environment tags, fetch the SWA deploy token at ru
 rely on the API applying EF Core migrations on start-up. Pushes only run the workflow for the
 changed area.
 
+#### Repair Azure login error `AADSTS700213`
+
+If publishing succeeds but Azure login reports “No matching federated identity record”,
+compare the `subject claim` in the failed login log with the deployment app's federated
+credentials. GitHub now uses immutable owner/repository IDs for newer repositories and
+repositories that have migrated, for example:
+
+```text
+repo:nampacx@8090625/Dorfplatz@1330769284:environment:dev
+```
+
+The bootstrap scripts read the repository's current `sub_claim_prefix` from the
+[GitHub OIDC API](https://docs.github.com/en/rest/actions/oidc#get-the-customization-template-for-an-oidc-subject-claim-for-a-repository)
+and update existing credentials rather than skipping them. Both legacy and immutable
+prefixes are supported; custom subject templates other than `repo` + `context` are rejected.
+
+Run the credential-only repair locally, logged in to Azure with permission to manage the
+existing deployment app registration and to GitHub with repository administration access:
+
+```powershell
+./scripts/bootstrap-github-oidc.ps1 -SubscriptionId <sub> -Repo nampacx/Dorfplatz -FederatedCredentialsOnly
+```
+
+```bash
+./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -r nampacx/Dorfplatz -f
+```
+
+This uses the existing `bb-github-deploy` app (`-AppName` in PowerShell if customized).
+Ensure its client ID matches the deployment's `AZURE_CLIENT_ID`. It repairs main, PR,
+`dev`, and `prod` credentials without changing GitHub secrets, database passwords,
+RBAC, or Azure resources. **Do not rerun the full bootstrap as a repair:** it writes
+secrets, including clearing authentication secrets.
+
+The repository change alone cannot update Azure's trust configuration. After running
+the repair, allow a few minutes for propagation, then rerun the failed deployment workflows.
+No change to `azure/login`'s `auth-type` or interactive login on the runner is needed.
+
 ### B) Local — one command, no CI
 
 ```bash

@@ -3,17 +3,20 @@
 # and all GitHub Actions secrets/variables. After this, deploy.yml needs no manual wiring.
 #
 # Usage:
-#   ./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -r owner/BulletinBoard [-g bb-dev-rg] [-l westeurope] [-e you@example.com]
+#   ./scripts/bootstrap-github-oidc.sh -s <subscriptionId> -r owner/BulletinBoard [-g bb-dev-rg] [-l westeurope] [-e you@example.com] [-f]
+#   -f repairs federated credentials only; does not change secrets, RBAC, or resources.
 #
 # Requires: az (logged in, Owner/UAA on the sub) and gh (logged in).
 set -euo pipefail
 
 RG="bb-dev-rg"; LOCATION="westeurope"; APP_NAME="bb-github-deploy"; SEED_EMAIL=""; PG_PASS=""; REPO=""
+FIC_ONLY=false
 ENVS=("dev" "prod")
-while getopts "s:r:g:l:e:p:" opt; do
+while getopts "s:r:g:l:e:p:f" opt; do
   case $opt in
     s) SUB="$OPTARG";; r) REPO="$OPTARG";; g) RG="$OPTARG";;
     l) LOCATION="$OPTARG";; e) SEED_EMAIL="$OPTARG";; p) PG_PASS="$OPTARG";;
+    f) FIC_ONLY=true;;
     *) echo "invalid option"; exit 1;;
   esac
 done
@@ -31,31 +34,54 @@ if [ -z "$REPO" ]; then
   info "Detected repo: $REPO"
 fi
 
-[ -n "$PG_PASS" ] || { PG_PASS="$(LC_ALL=C tr -dc 'A-Za-z0-9@#%' </dev/urandom | head -c 24)"; info "Generated PostgreSQL admin password."; }
+SUBJECT_PREFIX="$(gh api -H 'X-GitHub-Api-Version: 2026-03-10' "repos/$REPO/actions/oidc/customization/sub" --jq \
+  'if .use_default or .include_claim_keys == ["repo", "context"] then .sub_claim_prefix // empty else error("Unsupported custom OIDC subject template.") end')"
+[[ "$SUBJECT_PREFIX" == repo:* ]] || { echo "Missing or unexpected OIDC subject prefix." >&2; exit 1; }
+SUBJECT_PREFIX="${SUBJECT_PREFIX%:}"
+
+if ! $FIC_ONLY; then
+  [ -n "$PG_PASS" ] || { PG_PASS="$(LC_ALL=C tr -dc 'A-Za-z0-9@#%' </dev/urandom | head -c 24)"; info "Generated PostgreSQL admin password."; }
+fi
 
 az account set --subscription "$SUB"
 TENANT="$(az account show --query tenantId -o tsv)"
 
-info "Ensuring resource group '$RG'..."
-az group create -n "$RG" -l "$LOCATION" >/dev/null
+if ! $FIC_ONLY; then
+  info "Ensuring resource group '$RG'..."
+  az group create -n "$RG" -l "$LOCATION" >/dev/null
+fi
 
 info "Creating app registration '$APP_NAME'..."
 APP_ID="$(az ad app list --display-name "$APP_NAME" --query '[0].appId' -o tsv)"
+if $FIC_ONLY && [ -z "$APP_ID" ]; then
+  echo "Existing deployment app '$APP_NAME' not found." >&2
+  exit 1
+fi
 [ -n "$APP_ID" ] || APP_ID="$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)"
-SP_OID="$(az ad sp list --filter "appId eq '$APP_ID'" --query '[0].id' -o tsv)"
-[ -n "$SP_OID" ] || SP_OID="$(az ad sp create --id "$APP_ID" --query id -o tsv)"
 info "Client id: $APP_ID"
 
 add_fic() {
-  local name="$1" subject="$2"
-  az ad app federated-credential list --id "$APP_ID" --query "[?name=='$name'] | [0].name" -o tsv | grep -q . && return 0
-  az ad app federated-credential create --id "$APP_ID" --parameters \
-    "{\"name\":\"$name\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"$subject\",\"audiences\":[\"api://AzureADTokenExchange\"]}" >/dev/null
+  local name="$1" subject="$2" credential_id payload
+  credential_id="$(az ad app federated-credential list --id "$APP_ID" --query "[?name=='$name'] | [0].id" -o tsv)"
+  payload="\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"$subject\",\"audiences\":[\"api://AzureADTokenExchange\"]"
+  if [ -n "$credential_id" ]; then
+    az ad app federated-credential update --id "$APP_ID" --federated-credential-id "$credential_id" --parameters "{$payload}" >/dev/null
+  else
+    az ad app federated-credential create --id "$APP_ID" --parameters "{\"name\":\"$name\",$payload}" >/dev/null
+  fi
   info "Federated credential: $subject"
 }
-add_fic "gh-main" "repo:${REPO}:ref:refs/heads/main"
-add_fic "gh-pr"   "repo:${REPO}:pull_request"
-for e in "${ENVS[@]}"; do add_fic "gh-env-$e" "repo:${REPO}:environment:$e"; done
+add_fic "gh-main" "${SUBJECT_PREFIX}:ref:refs/heads/main"
+add_fic "gh-pr"   "${SUBJECT_PREFIX}:pull_request"
+for e in "${ENVS[@]}"; do add_fic "gh-env-$e" "${SUBJECT_PREFIX}:environment:$e"; done
+
+if $FIC_ONLY; then
+  info "Federated credentials repaired. GitHub secrets and Azure resources were not changed."
+  exit 0
+fi
+
+SP_OID="$(az ad sp list --filter "appId eq '$APP_ID'" --query '[0].id' -o tsv)"
+[ -n "$SP_OID" ] || SP_OID="$(az ad sp create --id "$APP_ID" --query id -o tsv)"
 
 SCOPE="/subscriptions/$SUB/resourceGroups/$RG"
 for role in "Contributor" "User Access Administrator"; do
