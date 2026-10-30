@@ -90,16 +90,58 @@ public class AccountFunctions
 
         var export = new
         {
-            profile = new { me.Id, me.Email, me.DisplayName, me.CreatedAt, me.ConsentedAt },
+            profile = new
+            {
+                me.Id, me.ProviderUserId, me.Email, me.DisplayName, me.CreatedAt, me.ConsentedAt,
+                me.DeletedAt, me.Status, me.StatusReason, me.DecidedAt, me.DecidedByUserId,
+                Roles = me.Roles.Select(r => new { r.Id, r.UserId, r.Role, r.GrantedAt, r.GrantedByUserId })
+            },
             roles = CurrentUserService.EffectiveRoles(me),
             events = await _db.Events.Where(e => e.AuthorId == me.Id)
-                .Select(e => new { e.Id, e.Title, e.Description, e.Status, e.CreatedAt }).ToListAsync(),
+                .Select(e => new
+                {
+                    e.Id, e.Title, e.Description, e.EventDate, e.EndDate, e.Location,
+                    e.ExternalImageUrl, e.ImageBlobName, e.Category, e.AuthorId, e.Status,
+                    e.RejectionReason, e.ModeratedById, e.ModeratedAt, e.CreatedAt, e.UpdatedAt, e.DeletedAt
+                }).ToListAsync(),
             services = await _db.Services.Where(s => s.AuthorId == me.Id)
-                .Select(s => new { s.Id, s.Type, s.Title, s.Description, s.CreatedAt }).ToListAsync(),
+                .Select(s => new
+                {
+                    s.Id, s.Type, s.Title, s.Description, s.Category, s.AuthorId,
+                    s.Status, s.CreatedAt, s.UpdatedAt, s.DeletedAt
+                }).ToListAsync(),
             goods = await _db.Goods.Where(g => g.AuthorId == me.Id)
-                .Select(g => new { g.Id, g.Title, g.Description, g.Price, g.Currency, g.CreatedAt }).ToListAsync(),
-            messages = await _db.Messages.Where(m => m.SenderId == me.Id)
-                .Select(m => new { m.Id, m.ConversationId, m.Body, m.SentAt }).ToListAsync()
+                .Select(g => new
+                {
+                    g.Id, g.Title, g.Description, g.Price, g.Currency, g.Condition, g.Category,
+                    g.Location, g.AuthorId, g.Status, g.CreatedAt, g.UpdatedAt, g.DeletedAt,
+                    Images = g.Images.OrderBy(i => i.SortOrder)
+                        .Select(i => new { i.Id, i.GoodsPostId, i.BlobName, i.SortOrder }).ToList()
+                }).ToListAsync(),
+            conversations = await _db.Conversations
+                .Where(c => c.ParticipantAId == me.Id || c.ParticipantBId == me.Id)
+                .Select(c => new
+                {
+                    c.Id, c.ListingType, c.ListingId, c.ParticipantAId, c.ParticipantBId,
+                    c.CreatedAt, c.LastMessageAt,
+                    OtherUserId = c.ParticipantAId == me.Id ? c.ParticipantBId : c.ParticipantAId,
+                    OtherDisplayName = c.ParticipantAId == me.Id
+                        ? c.ParticipantB.DisplayName : c.ParticipantA.DisplayName
+                }).ToListAsync(),
+            messages = await _db.Messages
+                .Where(m => m.Conversation.ParticipantAId == me.Id || m.Conversation.ParticipantBId == me.Id)
+                .Select(m => new
+                {
+                    m.Id, m.ConversationId, m.SenderId, m.Body, m.SentAt, m.ReadAt, m.IsDeleted
+                }).ToListAsync(),
+            auditLogs = await _db.AuditLogs
+                .Where(a => a.ActorUserId == me.Id ||
+                    (a.TargetType == "user" && a.TargetId == me.Id) ||
+                    (a.TargetType == "event" && _db.Events.Any(e => e.Id == a.TargetId && e.AuthorId == me.Id)))
+                .Select(a => new
+                {
+                    a.Id, a.Action, a.ActorUserId, a.TargetType, a.TargetId, a.Detail, a.CreatedAt
+                }).ToListAsync()
         };
 
         _audit.Record("gdpr.export", me.Id);
